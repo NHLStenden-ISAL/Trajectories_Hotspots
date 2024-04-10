@@ -103,29 +103,6 @@ public:
         std::vector<Vec2> get_vertices() const;
     };
 
-    size_t vertex_count() const { return vertices.size(); };
-    size_t half_edge_count() const { return half_edges.size(); };
-    size_t face_count() const { return faces.size(); };
-
-    void overlay_dcel(DCEL& other_dcel);
-
-    void insert_segment(const Segment& segment);
-
-    DCEL::DCEL_Half_Edge* create_free_segment_records(const Segment& segment);
-
-    DCEL_Vertex* get_vertex_at_position(const Vec2& position);
-
-    void clear()
-    {
-        vertices.clear();
-        half_edges.clear();
-        faces.clear();
-    };
-
-    std::vector<std::unique_ptr<DCEL_Vertex>> vertices;
-    std::vector<std::unique_ptr<DCEL_Half_Edge>> half_edges;
-    std::vector<std::unique_ptr<DCEL_Face>> faces;
-
     //Wrapper class used for the overlay of two DCELs. Each instance represents an edge that overlaps with two twin half-edges.
     class DCEL_Overlay_Edge_Wrapper
     {
@@ -156,6 +133,30 @@ public:
         bool original_dcel;
     };
 
+    size_t vertex_count() const { return vertices.size(); };
+    size_t half_edge_count() const { return half_edges.size(); };
+    size_t face_count() const { return faces.size(); };
+
+    void overlay_dcel(DCEL& other_dcel);
+
+    void insert_segment(const Segment& segment);
+
+    DCEL::DCEL_Half_Edge* create_free_segment_records(const Segment& segment);
+
+    DCEL_Vertex* get_vertex_at_position(const Vec2& position);
+
+    void clear()
+    {
+        vertices.clear();
+        half_edges.clear();
+        faces.clear();
+    };
+
+    std::vector<std::unique_ptr<DCEL_Vertex>> vertices;
+    std::vector<std::unique_ptr<DCEL_Half_Edge>> half_edges;
+    std::vector<std::unique_ptr<DCEL_Face>> faces;
+
+
 private:
 
     class Overlay_Handler
@@ -165,8 +166,6 @@ private:
         ~Overlay_Handler() = default;
 
     private:
-
-
 
         void get_vertices_from_top_segments(DCEL_Vertex*& original_vertex, DCEL_Vertex*& overlay_vertex);
         void get_vertices_from_bottom_segments(DCEL_Vertex*& original_vertex, DCEL_Vertex*& overlay_vertex);
@@ -198,7 +197,8 @@ private:
         DCEL_Vertex* overlay_edge_on_edge(DCEL_Half_Edge* edge_1, DCEL_Half_Edge* edge_2, const Vec2& intersection_point);
         void overlay_vertex_on_vertex(DCEL_Vertex* vertex_1, DCEL_Vertex* vertex_2)  const;
 
-        void overlay_collinear_overlap(const int original_edge_index, const int overlay_edge_index, const Vec2& intersection_point, std::vector<int>& to_delete);
+        void overlay_collinear_overlap(const int original_edge_index, const int overlay_edge_index, const Vec2& intersection_point);
+        void overlay_collinear_overlap_both_endpoints(DCEL::DCEL_Half_Edge* overlay_edge, DCEL::DCEL_Half_Edge* original_edge, const int original_edge_index, const int overlay_edge_index);
         void overlay_collinear_overlap_partial_or_embedded(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
         void overlay_collinear_overlap_same_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
 
@@ -221,6 +221,8 @@ private:
         std::vector<int> top_segments; //Segments that intersect at the top point.
         std::vector<int> bottom_segments; //Segments that intersect at the bottom point.
         std::vector<int> inner_segments; //Segments that have an internal intersection with the event point.
+
+        std::vector<int> to_delete; //In some rare cases we need to delete a number of segments, to preserve indices and for efficiency we delay this to the end.
     };
 
     friend Overlay_Handler;
