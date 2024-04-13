@@ -19,4 +19,6 @@
 #include "segment.h"
 #include "segment_search_tree.h"
 
+#include "segment_intersection.h"
+
 //TODO: Axis enum
