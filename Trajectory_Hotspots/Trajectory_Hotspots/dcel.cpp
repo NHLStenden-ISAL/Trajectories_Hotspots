@@ -235,7 +235,16 @@ void DCEL::add_edge_to_vertex(DCEL::DCEL_Half_Edge& incident_half_edge, DCEL::DC
 {
     incident_half_edge.origin = &vertex;
 
+    if (vertex.incident_half_edge == nullptr)
+    {
+        vertex.incident_half_edge = &incident_half_edge;
+        CW_half_edge = &incident_half_edge;
+        CCW_half_edge = &incident_half_edge;
+    }
+    else
+    {
     vertex.find_adjacent_half_edges(incident_half_edge, current_half_edge, CW_half_edge, CCW_half_edge);
+    }
 
     //half-edges chain counter clockwise and adjacent half-edges point outward
     //so: CW half-edge is just the CW adjacent
@@ -802,58 +811,85 @@ bool DCEL::Overlay_Handler::overlay_collinear_overlap_partial_or_embedded(DCEL_H
     {
         //lower_edge is fully embedded
         //middle_edge = lower_edge;
-        bottom_edge = higher_edge;
-        middle_bottom_vertex = lower_edge->origin;
+        //bottom_edge = higher_edge;
+        //vertex_C = lower_edge->origin; //Vertex C
+
+        overlay_collinear_overlap_embedded(higher_edge, lower_edge);
     }
     else
     {
-        //Both segments partially overlap
-        DCEL_Half_Edge* middle_edge = higher_edge;
-        bottom_edge = lower_edge;
-        middle_bottom_vertex = higher_edge->origin;
+        overlay_collinear_overlap_partial(higher_edge, lower_edge);
 
-        //If partial, shorten top to the top endpoint of the bottom edge
-        middle_edge->twin = bottom_edge->twin;
+
+    }
 
         //If partial, Shorten bottom twin to the bottom endpoint of the top edge
         bottom_edge->twin->twin = middle_edge;
 
+    return lower_is_embedded;
     }
 
-    //This operation creates two new half edges (we split and combine the two edges into three)
+void DCEL::Overlay_Handler::overlay_collinear_overlap_partial(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* lower_edge)
+{
+    //Vertices from top/left to bottom/right: A-B-C-D
+    DCEL_Vertex* vertex_B = lower_edge->target();
+    DCEL_Vertex* vertex_C = higher_edge->origin;
+
+    DCEL_Half_Edge* bottom_edge = lower_edge;
+
+    //This operation creates two new half edges (we split and combine the two edges into three edges)
     original_dcel.half_edges.reserve(original_dcel.half_edges.size() + 2);
 
     const std::unique_ptr<DCEL_Half_Edge>& new_top_edge = original_dcel.half_edges.emplace_back(std::make_unique<DCEL_Half_Edge>(
-        middle_top_vertex,        //Origin
+        vertex_B,     //Origin set to vertex B
         nullptr,                  //Face
         higher_edge->twin,        //Twin
         higher_edge->next,        //Next
-        nullptr)); //Prev is on the cycle of the bottom edge, top endpoint
+        nullptr)); //Prev is on the cycle of vertex B
 
+    //Replace the old top_edge with the new one in the cycle around A
     higher_edge->next->prev = new_top_edge.get();
 
     const std::unique_ptr<DCEL_Half_Edge>& new_bottom_twin_edge = original_dcel.half_edges.emplace_back(std::make_unique<DCEL_Half_Edge>(
-        middle_bottom_vertex,    //Origin
+        vertex_C,    //Origin set to vertex C
         nullptr,                 //Face
         bottom_edge,             //Twin
         bottom_edge->twin->next, //Next
-        nullptr)); //Prev is on the cycle of the top edge, bottom endpoint
+        nullptr)); //Prev is on the cycle vertex C
 
+    //Replace the old bottom twin with the new one in the cycle around D
     bottom_edge->twin->next->prev = new_bottom_twin_edge.get();
 
-    //Shorten top twin to the upper middle endpoint
-    higher_edge->twin->twin = new_top_edge.get();
+    //Shorten top twin to vertex B
+    new_top_edge->twin->twin = new_top_edge.get();
 
-    //Shorten bottom to the lower middle endpoint
+    //shorten top to vertex B
+    higher_edge->twin = bottom_edge->twin;
+
+    //shorten twin of bottom to vertex C
+    bottom_edge->twin->twin = higher_edge;
+
+    //Shorten bottom to vertex C
     bottom_edge->twin = new_bottom_twin_edge.get();
 
-    //Add the new top half-edge to the cycle around top vertex of the bottom edge
+    //Fix the cycle around vertex B by setting the next and prev of the new middle
+    higher_edge->next = bottom_edge->next;
+    higher_edge->next->prev = higher_edge;
+
+    //Fix the cycle around vertex C by setting the next and prev of the middle twin
+    higher_edge->twin->next = new_top_edge->twin->next;
+    higher_edge->twin->next->prev = higher_edge->twin;
+
+    //Add the new top half-edge to the cycle around vertex B
     original_dcel.add_edge_to_vertex(*new_top_edge.get(), *new_top_edge->origin);
 
-    //Add the new twin of the bottom half-edge to the bottom vertex of the top edge
+    //Add the new twin of the bottom half-edge to vertex C
     original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *new_bottom_twin_edge->origin);
+}
 
-    return lower_is_embedded;
+void DCEL::Overlay_Handler::overlay_collinear_overlap_embedded(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* middle_edge)
+{
+
 }
 
 std::vector<Vec2> DCEL::DCEL_Face::get_vertices() const

@@ -194,7 +194,10 @@ private:
         void overlay_collinear_overlap_top_endpoint(DCEL_Half_Edge* longer_edge, DCEL_Half_Edge* shorter_edge, Vec2& middle_vertex);
         void overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
         void overlay_collinear_overlap_both_endpoints(const int original_edge_index, const int overlay_edge_index);
-        bool overlay_collinear_overlap_partial_or_embedded(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
+        bool overlay_collinear_overlap_partial_or_embedded(DCEL_Half_Edge* top_edge, DCEL_Half_Edge* inner_edge);
+        void overlay_collinear_overlap_partial(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* lower_edge);
+        void overlay_collinear_overlap_embedded(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* middle_edge);
+
 
         void intersection_on_endpoint(const Vec2& intersection_point,
             const DCEL::DCEL_Half_Edge* old_half_edge,
