@@ -309,7 +309,7 @@ namespace TestTrajectoryHotspots
             }
         }
 
-        TEST_METHOD(DCEL_colinear_overlap)
+        TEST_METHOD(DCEL_colinear_partial_overlap)
         {
             Vec2 pA(2.f, 6.f);
             Vec2 pB(6.f, 6.f);
@@ -351,6 +351,68 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(g);
             dcel.insert_segment(f);
         }
+
+        TEST_METHOD(DCEL_colinear_top_point_overlap)
+        {
+            Vec2 pA(2.f, 6.f);
+
+            Vec2 pB(4.f, 6.f);
+            Vec2 pC(6.f, 6.f);
+
+            Segment f(pA, pB);
+            Segment g(pA, pC);
+
+            DCEL dcel;
+
+            dcel.insert_segment(f);
+            dcel.insert_segment(g);
+
+            DCEL dcel_reverse;
+
+            dcel.insert_segment(g);
+            dcel.insert_segment(f);
+        }
+
+        TEST_METHOD(DCEL_colinear_bottom_point_overlap)
+        {
+            Vec2 pA(2.f, 6.f);
+
+            Vec2 pB(4.f, 6.f);
+            Vec2 pC(6.f, 6.f);
+
+            Segment f(pA, pC);
+            Segment g(pB, pC);
+
+            DCEL dcel;
+
+            dcel.insert_segment(f);
+            dcel.insert_segment(g);
+
+            DCEL dcel_reverse;
+
+            dcel.insert_segment(g);
+            dcel.insert_segment(f);
+        }
+
+        //TEST_METHOD(DCEL_colinear_both_points_overlap)
+        //{
+            //TODO: Infinite loop?
+            //Vec2 pA(2.f, 6.f);
+            //Vec2 pB(9.f, 6.f);
+        //
+            //Segment f(pA, pB);
+            //Segment g(pA, pB);
+
+            //DCEL dcel;
+        //
+            //dcel.insert_segment(f);
+            //dcel.insert_segment(g);
+        //
+            //DCEL dcel_reverse;
+        //
+            //dcel.insert_segment(g);
+            //dcel.insert_segment(f);
+        //}
 
         TEST_METHOD(DCEL_Overlap_Same_DCELs)
         {
