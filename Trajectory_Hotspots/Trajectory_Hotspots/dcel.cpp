@@ -889,7 +889,46 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_partial(DCEL_Half_Edge* hi
 
 void DCEL::Overlay_Handler::overlay_collinear_overlap_embedded(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* middle_edge)
 {
+    //Vertices from top/left to bottom/right: A-B-C-D
+    DCEL_Vertex* vertex_B = middle_edge->target();
+    DCEL_Vertex* vertex_C = middle_edge->origin;
 
+    DCEL_Half_Edge* bottom_edge = higher_edge;
+
+    //This operation creates two new half edges (we split and combine the two edges into three edges)
+    original_dcel.half_edges.reserve(original_dcel.half_edges.size() + 2);
+
+    const std::unique_ptr<DCEL_Half_Edge>& new_top_edge = original_dcel.half_edges.emplace_back(std::make_unique<DCEL_Half_Edge>(
+        vertex_B,     //Origin set to vertex B
+        nullptr,                  //Face
+        higher_edge->twin,        //Twin
+        higher_edge->next,        //Next
+        nullptr)); //Prev is on the cycle of vertex B
+
+    //Replace the old top_edge with the new one in the cycle around A
+    higher_edge->next->prev = new_top_edge.get();
+
+    const std::unique_ptr<DCEL_Half_Edge>& new_bottom_twin_edge = original_dcel.half_edges.emplace_back(std::make_unique<DCEL_Half_Edge>(
+        vertex_C,    //Origin set to vertex C
+        nullptr,                 //Face
+        bottom_edge,             //Twin
+        bottom_edge->twin->next, //Next
+        nullptr)); //Prev is on the cycle vertex C
+
+    //Replace the old bottom twin with the new one in the cycle around D
+    bottom_edge->twin->next->prev = new_bottom_twin_edge.get();
+
+    //Shorten top twin to vertex B
+    new_top_edge->twin->twin = new_top_edge.get();
+
+    //Shorten bottom to vertex C
+    bottom_edge->twin = new_bottom_twin_edge.get();
+
+    //Add the new top half-edge to the cycle around vertex B
+    original_dcel.add_edge_to_vertex(*new_top_edge.get(), *new_top_edge->origin);
+
+    //Add the new twin of the bottom half-edge to vertex C
+    original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *new_bottom_twin_edge->origin);
 }
 
 std::vector<Vec2> DCEL::DCEL_Face::get_vertices() const
