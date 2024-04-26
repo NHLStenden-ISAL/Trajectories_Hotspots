@@ -309,33 +309,47 @@ namespace TestTrajectoryHotspots
             }
         }
 
-        TEST_METHOD(DCEL_colinear)
+        TEST_METHOD(DCEL_colinear_overlap)
         {
             Vec2 pA(2.f, 6.f);
             Vec2 pB(6.f, 6.f);
             Vec2 pC(4.f, 6.f);
             Vec2 pD(9.f, 6.f);
-            Vec2 pE(6.f, 10.f);
-            Vec2 pF(8.f, 6.f);
-            Vec2 pG(12.f, 6.f);
-            Vec2 pH(1.f, 6.f);
-            Vec2 pI(13.f, 6.f);
-
 
             Segment f(pA, pB);
             Segment g(pC, pD);
-            Segment h(pB, pE);
-            Segment i(pF, pG);
-            Segment j(pH, pI);
 
             DCEL dcel;
 
             dcel.insert_segment(f);
             dcel.insert_segment(g);
-            dcel.insert_segment(h);
-            dcel.insert_segment(i);
-            dcel.insert_segment(j);
 
+            DCEL dcel_reverse;
+
+            dcel_reverse.insert_segment(g);
+            dcel_reverse.insert_segment(f);
+        }
+
+        TEST_METHOD(DCEL_colinear_embedded)
+        {
+            Vec2 pA(2.f, 6.f);
+            Vec2 pB(9.f, 6.f);
+
+            Vec2 pC(4.f, 6.f);
+            Vec2 pD(6.f, 6.f);
+
+            Segment f(pA, pB);
+            Segment g(pC, pD);
+
+            DCEL dcel;
+
+            dcel.insert_segment(f);
+            dcel.insert_segment(g);
+
+            DCEL dcel_reverse;
+
+            dcel.insert_segment(g);
+            dcel.insert_segment(f);
         }
 
         TEST_METHOD(DCEL_Overlap_Same_DCELs)

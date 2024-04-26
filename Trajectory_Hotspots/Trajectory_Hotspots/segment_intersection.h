@@ -43,7 +43,7 @@ namespace Segment_Intersection_Sweep_Line
         Event_Queue& event_queue,
         const std::vector<SegmentT>& segments,
         const Vec2& event_point,
-        const std::vector<int>& top_segments,
+        std::vector<int>& top_segments,
         Event_Handler event_handler)
     {
         std::vector<int> inner_segments;
@@ -66,15 +66,19 @@ namespace Segment_Intersection_Sweep_Line
         for (int segment : ordered_intersecting_segments)
         {
             status_structure.remove(segments, segment);
+        }
 
+        //Process the segments at this point with the given event handler
+        event_handler(ordered_intersecting_segments, top_segments);
+
+        //Gather all inner segments for re-insertion
+        for (int segment : ordered_intersecting_segments)
+        {
             if (*segments[segment].get_bottom_point() != event_point)
             {
                 inner_segments.push_back(segment);
             }
         }
-
-        //Process the segments at this point with the given event handler
-        event_handler(ordered_intersecting_segments, top_segments);
 
         //Reinsert the segments that still intersect the sweepline
         for (int segment : inner_segments)

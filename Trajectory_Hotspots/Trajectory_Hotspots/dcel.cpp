@@ -209,18 +209,18 @@ DCEL::DCEL_Vertex* DCEL::Overlay_Handler::overlay_edge_on_edge(DCEL_Half_Edge* e
     return new_dcel_vertex.get();
 }
 
-void DCEL::Overlay_Handler::overlay_vertex_on_vertex(DCEL_Vertex* vertex_1, DCEL_Vertex* vertex_2) const
+void DCEL::Overlay_Handler::overlay_vertex_on_vertex(DCEL_Vertex* original_vertex, DCEL_Vertex* overlay_vertex) const
 {
     //Gather half-edges around second vertex
     //For each: Set origins to first vertex
     //          and switch prev, prev->next,
     //          twin->next, and twin->next->prev pointers
 
-    std::vector<DCEL_Half_Edge*> incident_half_edges_v2 = vertex_2->get_incident_half_edges();
+    std::vector<DCEL_Half_Edge*> incident_half_edges_v2 = overlay_vertex->get_incident_half_edges();
 
     for (DCEL_Half_Edge* incident_half_edge_v2 : incident_half_edges_v2)
     {
-        original_dcel.add_edge_to_vertex(*incident_half_edge_v2, *vertex_1);
+        original_dcel.add_edge_to_vertex(*incident_half_edge_v2, *original_vertex);
     }
 }
 
@@ -243,7 +243,7 @@ void DCEL::add_edge_to_vertex(DCEL::DCEL_Half_Edge& incident_half_edge, DCEL::DC
     }
     else
     {
-    vertex.find_adjacent_half_edges(incident_half_edge, current_half_edge, CW_half_edge, CCW_half_edge);
+        vertex.find_adjacent_half_edges(incident_half_edge, current_half_edge, CW_half_edge, CCW_half_edge);
     }
 
     //half-edges chain counter clockwise and adjacent half-edges point outward
@@ -483,9 +483,21 @@ void DCEL::Overlay_Handler::resolve_edge_intersections()
     {
         const Vec2 event_point = event_queue.begin()->first;
 
-        auto overlay_event_handler = [this, &event_point](std::vector<int>& new_intersecting_segments, std::vector<int> new_top_segments)
+        auto overlay_event_handler = [this, &event_point](std::vector<int>& new_intersecting_segments, std::vector<int>& new_top_segments)
             {
                 handle_overlay_event(event_point, new_intersecting_segments, new_top_segments);
+
+                if (inner_segments_updated)
+                {
+                    new_intersecting_segments = inner_segments;
+                    inner_segments_updated = false;
+                }
+
+                if (top_segments_updated)
+                {
+                    new_top_segments = top_segments;
+                    top_segments_updated = false;
+                }
             };
 
 
@@ -520,8 +532,11 @@ void DCEL::Overlay_Handler::handle_overlay_event(const Vec2& event_point, std::v
 
     overlay_create_intersection_info(new_intersecting_segments, new_top_segments, event_point);
 
-    //Before we handle the other overlay cases we need to handle potential collinear segments.
-    overlay_handle_collinear_overlaps(event_point);
+    //Handle any potential collinear overlaps, these resolve the other cases as well so we can return
+    if (overlay_handle_collinear_overlaps(event_point))
+    {
+        return;
+    }
 
     //Now process the other events
     auto inner_it = inner_segments.begin();
@@ -568,10 +583,9 @@ void DCEL::Overlay_Handler::handle_overlay_event(const Vec2& event_point, std::v
     {
         overlay_vertex_on_vertex(vertex_at_event_point, overlay_vertex_at_event_point);
     }
-
 }
 
-void DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_point)
+bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_point)
 {
     // ----
     //We only need to consider (parts of) segments below (or directly right of) the event point
@@ -584,14 +598,88 @@ void DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
     //We only need to compare the tops with the other tops and tops with inners.
     //Collinear overlaps with two inners should've been handled at the lowest top endpoint.
 
-    //TODO: Only process on original half_edges?
+    //A dcel can only have one inner segment at this event point (they will have split in an earlier overlay)
+    //The DCEL with the inner segment will have no tops here (again, the inner would have split already)
+    //Also, the DCEL with tops can't have collinear segments (also already handeled in an earlier overlay)
+    //This means that if we find a collinear overlap with an inner and a top segment there can be no more collinear overlaps and we can return.
+    for (size_t inner_segment_index = 0; inner_segment_index < inner_segments.size(); inner_segment_index++)
+    {
+        int inner_segment = inner_segments[inner_segment_index];
+        Float inner_angle = Vec2::pseudo_angle(event_point, *DCEL_edges[inner_segment].get_bottom_point());
 
+        for (size_t top_segment_index = 0; top_segment_index < top_segments.size(); top_segment_index++)
+        {
+            int top_segment = top_segments[top_segment_index];
+            Float top_angle = Vec2::pseudo_angle(event_point, *DCEL_edges[top_segment].get_bottom_point());
+
+            if (top_angle == inner_angle)
+            {
+                if (DCEL_edges[top_segment].underlying_half_edge->origin->position == DCEL_edges[inner_segment].underlying_half_edge->origin->position)
+                {
+                    //Collinear overlap with bottom endpoints overlapping
+                    assert(DCEL_edges[top_segment].original_dcel != DCEL_edges[inner_segment].original_dcel);
+
+                    const int original_index = DCEL_edges[top_segment].original_dcel ? top_segment : inner_segment;
+                    const int overlay_index = DCEL_edges[top_segment].original_dcel ? inner_segment : top_segment;
+
+                    DCEL_Half_Edge* original_half_edge = DCEL_edges[original_index].underlying_half_edge;
+                    DCEL_Half_Edge* overlay_half_edge = DCEL_edges[overlay_index].underlying_half_edge;
+
+                    overlay_collinear_overlap_bottom_endpoint(original_half_edge, overlay_half_edge);
+
+                    //Remove longer from inner list, it was shortened to above the sweepline
+                    inner_segments.erase(inner_segments.begin() + inner_segment_index);
+                    inner_segment_index--;
+                    inner_segments_updated = true;
+                }
+                else
+                {
+                    bool top_is_embedded = overlay_collinear_overlap_partial_or_embedded(top_segment, inner_segment);
+
+                    if (top_is_embedded)
+                    {
+                        DCEL_edges[inner_segment].edge_segment.start = DCEL_edges[inner_segment].underlying_half_edge->origin->position;
+                        DCEL_edges[inner_segment].edge_segment.end = DCEL_edges[inner_segment].underlying_half_edge->target()->position;
+
+                        //Top stays in the top list, its the middle of the (now) three segments
+                        //Inner becomes a top in the future, remove from inner and add to top event point at bottom of embedded segment
+                        inner_segments.erase(inner_segments.begin() + inner_segment_index);
+                        event_queue[DCEL_edges[top_segment].underlying_half_edge->origin->position].push_back(inner_segment);
+                        inner_segments_updated = true;
+                    }
+                    else
+                    {
+                        //Top becomes a top in the future (at the 3rd vertex)
+                        top_segments.erase(top_segments.begin() + top_segment_index);
+
+                        event_queue[DCEL_edges[inner_segment].underlying_half_edge->origin->position].push_back(top_segment);
+                        top_segment_index--;
+
+                        DCEL_edges[inner_segment].edge_segment.start = DCEL_edges[inner_segment].underlying_half_edge->origin->position;
+                        DCEL_edges[inner_segment].edge_segment.end = DCEL_edges[inner_segment].underlying_half_edge->target()->position;
+
+                        DCEL_edges[top_segment].edge_segment.start = DCEL_edges[top_segment].underlying_half_edge->origin->position;
+                        DCEL_edges[top_segment].edge_segment.end = DCEL_edges[top_segment].underlying_half_edge->target()->position;
+
+                        //Inner is now a top at current
+                        inner_segments.erase(inner_segments.begin() + inner_segment_index);
+                        inner_segments_updated = true;
+                        top_segments.push_back(inner_segment);
+                        top_segments_updated = true;
+                    }
+                }
+
+                return true;
+            }
+        }
+    }
+
+    bool top_collinear_found = false;
     for (size_t top_segment_index = 0; top_segment_index < top_segments.size(); top_segment_index++)
     {
         int top_segment = top_segments[top_segment_index];
         Float top_angle = Vec2::pseudo_angle(event_point, *DCEL_edges[top_segment].get_bottom_point());
 
-        bool collinear_found = false;
         for (size_t other_top_segment_index = 0; other_top_segment_index < top_segments.size(); other_top_segment_index++)
         {
             int other_top_segment = top_segments[other_top_segment_index];
@@ -605,7 +693,8 @@ void DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
 
             if (top_angle == other_top_angle)
             {
-                //Collinear overlap with both endpoints overlapping
+                //Collinear overlap with both top endpoints overlapping
+                //TODO: Only this case can have multiple collinear overlaps.
 
                 assert(DCEL_edges[top_segment].original_dcel != DCEL_edges[other_top_segment].original_dcel);
 
@@ -622,6 +711,8 @@ void DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
                     other_top_segment_index--;
                     top_segments.erase(top_segments.begin() + top_segment_index);
                     top_segment_index--;
+
+                    top_segments_updated = true;
                 }
                 else
                 {
@@ -649,73 +740,25 @@ void DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
                         top_segments.erase(top_segments.begin() + other_top_segment_index);
                         event_queue[middle_vertex].push_back(other_top_segment);
                     }
+
+                    top_segments_updated = true;
                 }
 
-                collinear_found = true;
+                top_collinear_found = true;
                 break;
             }
         }
 
-        if (collinear_found)
+        if (top_collinear_found)
         {
             //Skip check with inners if we found an overlap with a top, both can't happen at the same time
             continue;
         }
 
-        for (size_t inner_segment_index = 0; inner_segment_index < inner_segments.size(); inner_segment_index++)
-        {
-            int inner_segment = inner_segments[inner_segment_index];
 
-            Float inner_angle = Vec2::pseudo_angle(event_point, *DCEL_edges[inner_segment].get_bottom_point());
-
-            if (top_angle == inner_angle)
-            {
-                if (DCEL_edges[top_segment].underlying_half_edge->origin->position == DCEL_edges[inner_segment].underlying_half_edge->origin->position)
-                {
-                    //Collinear overlap with bottom endpoints overlapping
-                    assert(DCEL_edges[top_segment].original_dcel != DCEL_edges[inner_segment].original_dcel);
-
-                    const int original_index = DCEL_edges[top_segment].original_dcel ? top_segment : inner_segment;
-                    const int overlay_index = DCEL_edges[top_segment].original_dcel ? inner_segment : top_segment;
-
-                    DCEL_Half_Edge* original_half_edge = DCEL_edges[original_index].underlying_half_edge;
-                    DCEL_Half_Edge* overlay_half_edge = DCEL_edges[overlay_index].underlying_half_edge;
-
-                    overlay_collinear_overlap_bottom_endpoint(original_half_edge, overlay_half_edge);
-
-                    //Remove longer from inner list, it was shortened to above the sweepline
-                    inner_segments.erase(inner_segments.begin() + inner_segment_index);
-                    inner_segment_index--;
-                }
-                else
-                {
-                    bool top_is_embedded = overlay_collinear_overlap_partial_or_embedded(DCEL_edges[top_segment].underlying_half_edge, DCEL_edges[inner_segment].underlying_half_edge);
-
-                    if (top_is_embedded)
-                    {
-                        //Top stays in the top list, its the middle of the (now) three segments
-                        //Inner becomes a top in the future, remove from inner and add to top event point at bottom of embedded segment
-                        inner_segments.erase(inner_segments.begin() + inner_segment_index);
-                        event_queue[DCEL_edges[top_segment].underlying_half_edge->origin->position].push_back(inner_segment);
-                    }
-                    else
-                    {
-                        //Top becomes a top in the future (at the 3rd vertex)
-                        top_segments.erase(top_segments.begin() + top_segment_index);
-                        event_queue[DCEL_edges[inner_segment].underlying_half_edge->origin->position].push_back(top_segment);
-                        top_segment_index--;
-
-                        //Inner is now a top at current
-                        inner_segments.erase(inner_segments.begin() + inner_segment_index);
-                        top_segments.push_back(inner_segment);
-                    }
-
-                }
-
-                break;
-            }
-        }
     }
+
+    return top_collinear_found;
 }
 
 void DCEL::Overlay_Handler::overlay_collinear_overlap_both_endpoints(const int original_edge_index, const int overlay_edge_index)
@@ -729,7 +772,6 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_both_endpoints(const int o
 
     DCEL_Half_Edge* original_edge = DCEL_edges[original_edge_index].underlying_half_edge;
     DCEL_Half_Edge* overlay_edge = DCEL_edges[overlay_edge_index].underlying_half_edge;
-
 
     //Remove the overlay_edge from the vertices in the overlaying dcel so we dont try to add them again at another event type
     overlay_edge->remove_from_cycle();
@@ -747,6 +789,12 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_both_endpoints(const int o
     //Delete both half-edges, we re-use the twins of each edge to form the new edge
     to_delete.push_back(original_edge_index);
     to_delete.push_back(overlay_edge_index);
+
+    //Finish this event point by merging both top vertices into the original vertex
+    DCEL_Vertex* original_top_vertex = DCEL_edges[original_edge_index].underlying_half_edge->target();
+    DCEL_Vertex* overlay_top_vertex = DCEL_edges[overlay_edge_index].underlying_half_edge->target();
+
+    overlay_vertex_on_vertex(original_top_vertex, overlay_top_vertex);
 }
 
 void DCEL::Overlay_Handler::overlay_collinear_overlap_top_endpoint(DCEL_Half_Edge* longer_edge, DCEL_Half_Edge* shorter_edge, Vec2& middle_vertex)
@@ -756,6 +804,12 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_top_endpoint(DCEL_Half_Edg
     original_dcel.add_edge_to_vertex(*longer_edge->twin, *shorter_edge->origin);
 
     middle_vertex = shorter_edge->origin->position;
+
+    ////Finish this event point by merging both top vertices into the original vertex
+    //DCEL_Vertex* original_top_vertex = DCEL_edges[original_edge_index].underlying_half_edge->target();
+    //DCEL_Vertex* overlay_top_vertex = DCEL_edges[overlay_edge_index].underlying_half_edge->target();
+
+    //overlay_vertex_on_vertex(original_top_vertex, overlay_top_vertex);
 }
 
 void DCEL::Overlay_Handler::overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge)
@@ -776,66 +830,72 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_bottom_endpoint(DCEL_Half_
         overlay_edge->remove_from_cycle();
         original_dcel.add_edge_to_vertex(*overlay_edge, *original_edge->origin);
     }
+
+    //TODO: Create new vertex in original and add split.
 }
 
-bool DCEL::Overlay_Handler::overlay_collinear_overlap_partial_or_embedded(DCEL_Half_Edge* edge_event_at_top, DCEL_Half_Edge* edge_event_inside)
+bool DCEL::Overlay_Handler::overlay_collinear_overlap_partial_or_embedded(const int top_edge_index, const int inner_edge_index)
 {
-    //Handle partial overlay (no endpoints overlap)
-    DCEL_Half_Edge* higher_edge = edge_event_inside;
-    DCEL_Half_Edge* lower_edge = edge_event_at_top;
+    //Vertices from top/left to bottom/right: A-B-C-D
 
-    DCEL_Vertex* middle_top_vertex = lower_edge->target();
-    DCEL_Vertex* middle_bottom_vertex = nullptr;
+    const DCEL_Half_Edge* higher_edge = DCEL_edges[inner_edge_index].underlying_half_edge;
+    const DCEL_Half_Edge* lower_edge = DCEL_edges[top_edge_index].underlying_half_edge;
 
-    DCEL_Half_Edge* bottom_edge = nullptr;
-
-    bool lower_is_embedded;
+    bool is_embedded;
     if (lower_edge->origin->position.y == higher_edge->origin->position.y)
     {
         if (lower_edge->origin->position.x == higher_edge->origin->position.x)
         {
-            lower_is_embedded = false;
+            is_embedded = false;
         }
         else
         {
-            lower_is_embedded = lower_edge->origin->position.x < higher_edge->origin->position.x;
+            is_embedded = lower_edge->origin->position.x < higher_edge->origin->position.x;
         }
     }
     else
     {
-        lower_is_embedded = lower_edge->origin->position.y > higher_edge->origin->position.y;
+        is_embedded = lower_edge->origin->position.y > higher_edge->origin->position.y;
     }
 
     //Determine the new middle and bottom half-edges based on the ordering of the bottom endpoints
-    if (lower_is_embedded)
+    if (is_embedded)
     {
-        //lower_edge is fully embedded
-        //middle_edge = lower_edge;
-        //bottom_edge = higher_edge;
-        //vertex_C = lower_edge->origin; //Vertex C
-
-        overlay_collinear_overlap_embedded(higher_edge, lower_edge);
+        overlay_collinear_overlap_embedded(inner_edge_index, top_edge_index);
     }
     else
     {
-        overlay_collinear_overlap_partial(higher_edge, lower_edge);
-
-
+        overlay_collinear_overlap_partial(inner_edge_index, top_edge_index);
     }
 
-        //If partial, Shorten bottom twin to the bottom endpoint of the top edge
-        bottom_edge->twin->twin = middle_edge;
+    return is_embedded;
+}
 
-    return lower_is_embedded;
-    }
-
-void DCEL::Overlay_Handler::overlay_collinear_overlap_partial(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* lower_edge)
+void DCEL::Overlay_Handler::overlay_collinear_overlap_partial(const int higher_edge_index, const int lower_edge_index)
 {
     //Vertices from top/left to bottom/right: A-B-C-D
-    DCEL_Vertex* vertex_B = lower_edge->target();
-    DCEL_Vertex* vertex_C = higher_edge->origin;
+    //DCEL_Vertex* vertex_B = DCEL_edges[lower_edge_index].underlying_half_edge->target();
 
-    DCEL_Half_Edge* bottom_edge = lower_edge;
+    //In this case one of the dcels only contributing segment is a singly inner segment.
+    //This means we can copy over the vertex if it belongs to the overlay DCEL,
+    //split the single edge, and add these to the vertex cycle to complete the whole event point.
+    DCEL_Vertex* vertex_B = nullptr;
+    if (DCEL_edges[lower_edge_index].original_dcel)
+    {
+        vertex_B = DCEL_edges[lower_edge_index].underlying_half_edge->target();
+    }
+    else
+    {
+        vertex_B = create_new_vertex(DCEL_edges[lower_edge_index].underlying_half_edge->target()->position, true);
+        overlay_vertex_on_vertex(vertex_B, DCEL_edges[lower_edge_index].underlying_half_edge->target());
+    }
+
+    //Vertex C and D are always in different DCELs, to make the overlay algorithm work at the lower event point 
+    //we create a new vertex in the dcel of D and connect the third edge to the new C
+    DCEL_Vertex* vertex_C = create_new_vertex(DCEL_edges[higher_edge_index].underlying_half_edge->origin->position, DCEL_edges[lower_edge_index].original_dcel);
+
+    DCEL_Half_Edge* higher_edge = DCEL_edges[higher_edge_index].underlying_half_edge;
+    DCEL_Half_Edge* bottom_edge = DCEL_edges[lower_edge_index].underlying_half_edge;
 
     //This operation creates two new half edges (we split and combine the two edges into three edges)
     original_dcel.half_edges.reserve(original_dcel.half_edges.size() + 2);
@@ -884,16 +944,33 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_partial(DCEL_Half_Edge* hi
     original_dcel.add_edge_to_vertex(*new_top_edge.get(), *new_top_edge->origin);
 
     //Add the new twin of the bottom half-edge to vertex C
-    original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *new_bottom_twin_edge->origin);
+    original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *vertex_C);
 }
 
-void DCEL::Overlay_Handler::overlay_collinear_overlap_embedded(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* middle_edge)
+void DCEL::Overlay_Handler::overlay_collinear_overlap_embedded(const int higher_edge_index, const int middle_edge_index)
 {
     //Vertices from top/left to bottom/right: A-B-C-D
-    DCEL_Vertex* vertex_B = middle_edge->target();
-    DCEL_Vertex* vertex_C = middle_edge->origin;
 
-    DCEL_Half_Edge* bottom_edge = higher_edge;
+    //In this case one of the dcels only contributing segment is a singly inner segment.
+    //This means we can copy over the vertex if it belongs to the overlay DCEL,
+    //split the single edge, and add these to the vertex cycle to complete the whole event point.
+    DCEL_Vertex* vertex_B = nullptr;
+    if (DCEL_edges[middle_edge_index].original_dcel)
+    {
+        vertex_B = DCEL_edges[middle_edge_index].underlying_half_edge->target();
+    }
+    else
+    {
+        vertex_B = create_new_vertex(DCEL_edges[middle_edge_index].underlying_half_edge->target()->position, true);
+        overlay_vertex_on_vertex(vertex_B, DCEL_edges[middle_edge_index].underlying_half_edge->target());
+    }
+
+    //Vertex C and D are always in different DCELs, to make the overlay algorithm work at the lower event point 
+    //we create a new vertex in the dcel of D and connect the third edge to the new C
+    DCEL_Vertex* vertex_C = create_new_vertex(DCEL_edges[middle_edge_index].underlying_half_edge->origin->position, DCEL_edges[higher_edge_index].original_dcel);
+
+    DCEL_Half_Edge* higher_edge = DCEL_edges[higher_edge_index].underlying_half_edge;
+    DCEL_Half_Edge* bottom_edge = DCEL_edges[higher_edge_index].underlying_half_edge;
 
     //This operation creates two new half edges (we split and combine the two edges into three edges)
     original_dcel.half_edges.reserve(original_dcel.half_edges.size() + 2);
@@ -928,7 +1005,19 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_embedded(DCEL_Half_Edge* h
     original_dcel.add_edge_to_vertex(*new_top_edge.get(), *new_top_edge->origin);
 
     //Add the new twin of the bottom half-edge to vertex C
-    original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *new_bottom_twin_edge->origin);
+    original_dcel.add_edge_to_vertex(*new_bottom_twin_edge.get(), *vertex_C);
+}
+
+DCEL::DCEL_Vertex* DCEL::Overlay_Handler::create_new_vertex(const Vec2& position, bool target_DCEL)
+{
+    if (target_DCEL)
+    {
+        return original_dcel.vertices.emplace_back(std::make_unique<DCEL_Vertex>(position)).get();
+    }
+    else
+    {
+        return overlaying_dcel.vertices.emplace_back(std::make_unique<DCEL_Vertex>(position)).get();
+    }
 }
 
 std::vector<Vec2> DCEL::DCEL_Face::get_vertices() const

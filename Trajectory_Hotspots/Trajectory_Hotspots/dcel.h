@@ -188,16 +188,17 @@ private:
 
         void overlay_edge_on_vertex(DCEL_Half_Edge* edge, DCEL_Vertex* vertex);
         DCEL_Vertex* overlay_edge_on_edge(DCEL_Half_Edge* edge_1, DCEL_Half_Edge* edge_2, const Vec2& intersection_point);
-        void overlay_vertex_on_vertex(DCEL_Vertex* vertex_1, DCEL_Vertex* vertex_2)  const;
+        void overlay_vertex_on_vertex(DCEL_Vertex* original_vertex, DCEL_Vertex* overlay_vertex)  const;
 
-        void overlay_handle_collinear_overlaps(const Vec2& event_point);
+        bool overlay_handle_collinear_overlaps(const Vec2& event_point);
         void overlay_collinear_overlap_top_endpoint(DCEL_Half_Edge* longer_edge, DCEL_Half_Edge* shorter_edge, Vec2& middle_vertex);
         void overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
         void overlay_collinear_overlap_both_endpoints(const int original_edge_index, const int overlay_edge_index);
-        bool overlay_collinear_overlap_partial_or_embedded(DCEL_Half_Edge* top_edge, DCEL_Half_Edge* inner_edge);
-        void overlay_collinear_overlap_partial(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* lower_edge);
-        void overlay_collinear_overlap_embedded(DCEL_Half_Edge* higher_edge, DCEL_Half_Edge* middle_edge);
+        bool overlay_collinear_overlap_partial_or_embedded(const int top_edge_index, const int inner_edge_index);
+        void overlay_collinear_overlap_partial(const int higher_edge_index, const int lower_edge_index);
+        void overlay_collinear_overlap_embedded(const int higher_edge_index, const int middle_edge_index);
 
+        DCEL_Vertex* create_new_vertex(const Vec2& position, bool target_DCEL);
 
         void intersection_on_endpoint(const Vec2& intersection_point,
             const DCEL::DCEL_Half_Edge* old_half_edge,
@@ -222,6 +223,9 @@ private:
         std::vector<int> inner_segments; //Segments that have an internal intersection with the event point.
 
         std::vector<int> to_delete; //In some rare cases we need to delete a number of segments, to preserve indices and for efficiency we delay this to the end.
+
+        bool top_segments_updated = false;
+        bool inner_segments_updated = false;
     };
 
     friend Overlay_Handler;
