@@ -136,7 +136,7 @@ public:
 
     DCEL::DCEL_Half_Edge* create_free_segment_records(const Segment& segment);
 
-    DCEL_Vertex* get_vertex_at_position(const Vec2& position);
+    DCEL_Vertex* get_vertex_at_position(const Vec2& position) const;
 
     void clear()
     {

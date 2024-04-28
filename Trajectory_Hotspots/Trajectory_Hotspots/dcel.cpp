@@ -51,7 +51,7 @@ DCEL::DCEL_Half_Edge* DCEL::create_free_segment_records(const Segment& segment)
     return new_half_edge_1.get();
 }
 
-DCEL::DCEL_Vertex* DCEL::get_vertex_at_position(const Vec2& position)
+DCEL::DCEL_Vertex* DCEL::get_vertex_at_position(const Vec2& position) const
 {
     for (const auto& vert : vertices)
     {
