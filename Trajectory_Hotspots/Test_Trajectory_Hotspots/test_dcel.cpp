@@ -529,6 +529,8 @@ namespace TestTrajectoryHotspots
 
             dcel.insert_segment(f);
             dcel.insert_segment(g);
+
+            test_dcel_two_connected_segments(dcel, pA, pB, pC);
         }
 
         TEST_METHOD(DCEL_colinear_bottom_point_overlap_reverse)
@@ -545,6 +547,8 @@ namespace TestTrajectoryHotspots
 
             dcel_reverse.insert_segment(g);
             dcel_reverse.insert_segment(f);
+
+            test_dcel_two_connected_segments(dcel_reverse, pA, pB, pC);
         }
 
         //TEST_METHOD(DCEL_colinear_both_points_overlap)

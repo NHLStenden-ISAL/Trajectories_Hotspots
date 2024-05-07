@@ -629,10 +629,22 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
 
                     overlay_collinear_overlap_bottom_endpoint(original_half_edge, overlay_half_edge);
 
-                    //Remove longer from inner list, it was shortened to above the sweepline
+                    //If original longer, remove original from inner, add original to top, and remove overlay from top
+                    //If original shorter and remove overlay from inner
+
                     inner_segments.erase(inner_segments.begin() + inner_segment_index);
                     inner_segment_index--;
                     inner_segments_updated = true;
+
+                    if (DCEL_edges[inner_segment].original_dcel)
+                    {
+                        //Remove overlay from top list, it was shortened/moved to A-B above the sweepline
+                        top_segments.erase(top_segments.begin() + top_segment_index);
+                        top_segment_index--;
+                        top_segments_updated = true;
+
+                        top_segments.push_back(original_index);
+                    }
                 }
                 else
                 {
@@ -839,21 +851,26 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_bottom_endpoint(DCEL_Half_
     Float original_edge_sqrd_length = (original_edge->target()->position - original_edge->origin->position).squared_length();
     Float overlay_edge_sqrd_length = (overlay_edge->target()->position - overlay_edge->origin->position).squared_length();
 
-    //Bottom vertices overlap
+    DCEL_Vertex* vertex_B = overlay_edge->target();
+
+    //To reduce the complexity of the overlay algorithm we need to make sure the bottom segment is from the original dcel
     if (original_edge_sqrd_length > overlay_edge_sqrd_length)
     {
-        //Original is longer, remove original from bottom vertex and add to middle vertex (shortens original_edge)
-        original_edge->remove_from_cycle();
-        original_dcel.add_edge_to_vertex(*original_edge, *overlay_edge->origin);
-    }
-    else
-    {
-        //Overlay is longer, remove overlay from bottom vertex and add to middle vertex (shortens overlay_edge)
-        overlay_edge->remove_from_cycle();
-        original_dcel.add_edge_to_vertex(*overlay_edge, *original_edge->origin);
+        DCEL_Vertex* vertex_A = original_edge->target();
+
+        original_edge->twin->remove_from_cycle();
+        overlay_edge->twin->remove_from_cycle();
+
+        original_dcel.add_edge_to_vertex(*original_edge->twin, *vertex_B);
+        original_dcel.add_edge_to_vertex(*overlay_edge->twin, *vertex_A);
+
+        //The middle vertex is unique to the overlay dcel, copy the middle vertex into the original dcel
+        vertex_B = overlay_copy_vertex_into_dcel(vertex_B);
     }
 
-    //TODO: Create new vertex in original and add split.
+    //Overlay is (now) longer, remove overlay from bottom vertex and add to middle vertex (shortens overlay_edge)
+    overlay_edge->remove_from_cycle();
+    original_dcel.add_edge_to_vertex(*overlay_edge, *vertex_B);
 }
 
 bool DCEL::Overlay_Handler::overlay_collinear_overlap_partial_or_embedded(const int top_edge_index, const int inner_edge_index)
