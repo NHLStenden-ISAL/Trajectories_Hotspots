@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "Vec2.h"
+#include "vec2.h"
 
 Float Vec2::dot(const Vec2& other) const
 {
