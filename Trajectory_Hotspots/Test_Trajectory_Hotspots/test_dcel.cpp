@@ -311,7 +311,7 @@ namespace TestTrajectoryHotspots
 
 
 
-        void test_dcel_colinear_partial_overlap(const DCEL& dcel, const Vec2& pA, const Vec2& pB, const Vec2& pC, const Vec2& pD) const
+        void test_dcel_three_connected_segments(const DCEL& dcel, const Vec2& pA, const Vec2& pB, const Vec2& pC, const Vec2& pD) const
         {
             Assert::AreEqual(size_t(6), dcel.half_edge_count(), L"DCEL has an incorrect amount of half edges.");
             Assert::AreEqual(size_t(4), dcel.vertex_count(), L"DCEL has an incorrect amount of half vertices.");
@@ -385,7 +385,7 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(f);
             dcel.insert_segment(g);
 
-            test_dcel_colinear_partial_overlap(dcel, pA, pB, pC, pD);
+            test_dcel_three_connected_segments(dcel, pA, pB, pC, pD);
         }
 
         TEST_METHOD(DCEL_colinear_partial_overlap_reverse)
@@ -403,7 +403,7 @@ namespace TestTrajectoryHotspots
             dcel_reverse.insert_segment(g);
             dcel_reverse.insert_segment(f);
 
-            test_dcel_colinear_partial_overlap(dcel_reverse, pA, pB, pC, pD);
+            test_dcel_three_connected_segments(dcel_reverse, pA, pB, pC, pD);
         }
 
         TEST_METHOD(DCEL_colinear_embedded)
@@ -422,60 +422,7 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(f);
             dcel.insert_segment(g);
 
-            Assert::AreEqual(size_t(6), dcel.half_edge_count(), L"DCEL has an incorrect amount of half edges.");
-            Assert::AreEqual(size_t(4), dcel.vertex_count(), L"DCEL has an incorrect amount of half vertices.");
-
-            std::vector<Vec2> correct_order = { pA, pB,pC,pD,pC,pB,pA };
-            std::vector<Vec2> current_next_order;
-            std::vector<Vec2> current_prev_order;
-
-            DCEL::DCEL_Vertex* vertex_a = dcel.get_vertex_at_position(pA);
-
-            //Test the next cycles
-            const DCEL::DCEL_Half_Edge* current_half_edge = vertex_a->incident_half_edge;
-            for (size_t i = 0; i < 7; i++)
-            {
-                current_next_order.push_back(current_half_edge->origin->position);
-                current_half_edge = current_half_edge->next;
-            }
-
-            Assert::AreEqual(correct_order, current_next_order);
-
-            //Test the prev cycles
-            current_half_edge = vertex_a->incident_half_edge;
-            for (size_t i = 0; i < 7; i++)
-            {
-                current_prev_order.push_back(current_half_edge->origin->position);
-                current_half_edge = current_half_edge->prev;
-            }
-
-            Assert::AreEqual(correct_order, current_prev_order);
-
-            DCEL::DCEL_Vertex* vertex_b = dcel.get_vertex_at_position(pB);
-            DCEL::DCEL_Vertex* vertex_c = dcel.get_vertex_at_position(pC);
-            DCEL::DCEL_Vertex* vertex_d = dcel.get_vertex_at_position(pD);
-
-            auto incident_he_a = vertex_a->get_incident_half_edges();
-            auto incident_he_b = vertex_b->get_incident_half_edges();
-            auto incident_he_c = vertex_c->get_incident_half_edges();
-            auto incident_he_d = vertex_d->get_incident_half_edges();
-
-            Assert::AreEqual(size_t(1), incident_he_a.size());
-            Assert::AreEqual(size_t(2), incident_he_b.size());
-            Assert::AreEqual(size_t(2), incident_he_c.size());
-            Assert::AreEqual(size_t(1), incident_he_d.size());
-
-            Assert::AreEqual(vertex_b, incident_he_a[0]->twin->origin);
-
-            std::vector<DCEL::DCEL_Vertex*> expected_neighbours_b = { vertex_a, vertex_c };
-            std::vector<DCEL::DCEL_Vertex*> expected_neighbours_c = { vertex_b, vertex_d };
-            std::vector<DCEL::DCEL_Vertex*> neighbours_b = { incident_he_b[0]->twin->origin, incident_he_b[1]->twin->origin };
-            std::vector<DCEL::DCEL_Vertex*> neighbours_c = { incident_he_c[0]->twin->origin, incident_he_c[1]->twin->origin };
-
-            Assert::IsTrue(std::is_permutation(expected_neighbours_b.begin(), expected_neighbours_b.end(), neighbours_b.begin()));
-            Assert::IsTrue(std::is_permutation(expected_neighbours_c.begin(), expected_neighbours_c.end(), neighbours_c.begin()));
-
-            Assert::AreEqual(vertex_c, incident_he_d[0]->twin->origin);
+            test_dcel_three_connected_segments(dcel, pA, pB, pC, pD);
         }
 
         TEST_METHOD(DCEL_colinear_embedded_reverse)
@@ -494,60 +441,33 @@ namespace TestTrajectoryHotspots
             dcel_reverse.insert_segment(g);
             dcel_reverse.insert_segment(f);
 
-            Assert::AreEqual(size_t(6), dcel_reverse.half_edge_count(), L"DCEL has an incorrect amount of half edges.");
-            Assert::AreEqual(size_t(4), dcel_reverse.vertex_count(), L"DCEL has an incorrect amount of half vertices.");
+            test_dcel_three_connected_segments(dcel_reverse, pA, pB, pC, pD);
+        }
 
-            std::vector<Vec2> correct_order = { pA, pB,pC,pD,pC,pB,pA };
-            std::vector<Vec2> current_next_order;
-            std::vector<Vec2> current_prev_order;
+        void test_dcel_two_connected_segments(const DCEL& dcel, const Vec2& pA, const Vec2& pB, const Vec2& pC) const
+        {
+            Assert::AreEqual(size_t(3), dcel.vertex_count());
+            Assert::AreEqual(size_t(4), dcel.half_edge_count());
 
-            DCEL::DCEL_Vertex* vertex_a = dcel_reverse.get_vertex_at_position(pA);
+            DCEL::DCEL_Vertex* vertex_a = dcel.get_vertex_at_position(pA);
+            DCEL::DCEL_Vertex* vertex_b = dcel.get_vertex_at_position(pB);
+            DCEL::DCEL_Vertex* vertex_c = dcel.get_vertex_at_position(pC);
 
-            //Test the next cycles
-            const DCEL::DCEL_Half_Edge* current_half_edge = vertex_a->incident_half_edge;
-            for (size_t i = 0; i < 7; i++)
-            {
-                current_next_order.push_back(current_half_edge->origin->position);
-                current_half_edge = current_half_edge->next;
-            }
-
-            Assert::AreEqual(correct_order, current_next_order);
-
-            //Test the prev cycles
-            current_half_edge = vertex_a->incident_half_edge;
-            for (size_t i = 0; i < 7; i++)
-            {
-                current_prev_order.push_back(current_half_edge->origin->position);
-                current_half_edge = current_half_edge->prev;
-            }
-
-            Assert::AreEqual(correct_order, current_prev_order);
-
-            DCEL::DCEL_Vertex* vertex_b = dcel_reverse.get_vertex_at_position(pB);
-            DCEL::DCEL_Vertex* vertex_c = dcel_reverse.get_vertex_at_position(pC);
-            DCEL::DCEL_Vertex* vertex_d = dcel_reverse.get_vertex_at_position(pD);
+            Assert::AreEqual(size_t(1), vertex_a->get_incident_half_edges().size());
+            Assert::AreEqual(size_t(2), vertex_b->get_incident_half_edges().size());
+            Assert::AreEqual(size_t(1), vertex_c->get_incident_half_edges().size());
 
             auto incident_he_a = vertex_a->get_incident_half_edges();
             auto incident_he_b = vertex_b->get_incident_half_edges();
             auto incident_he_c = vertex_c->get_incident_half_edges();
-            auto incident_he_d = vertex_d->get_incident_half_edges();
-
-            Assert::AreEqual(size_t(1), incident_he_a.size());
-            Assert::AreEqual(size_t(2), incident_he_b.size());
-            Assert::AreEqual(size_t(2), incident_he_c.size());
-            Assert::AreEqual(size_t(1), incident_he_d.size());
 
             Assert::AreEqual(vertex_b, incident_he_a[0]->twin->origin);
 
             std::vector<DCEL::DCEL_Vertex*> expected_neighbours_b = { vertex_a, vertex_c };
-            std::vector<DCEL::DCEL_Vertex*> expected_neighbours_c = { vertex_b, vertex_d };
             std::vector<DCEL::DCEL_Vertex*> neighbours_b = { incident_he_b[0]->twin->origin, incident_he_b[1]->twin->origin };
-            std::vector<DCEL::DCEL_Vertex*> neighbours_c = { incident_he_c[0]->twin->origin, incident_he_c[1]->twin->origin };
-
             Assert::IsTrue(std::is_permutation(expected_neighbours_b.begin(), expected_neighbours_b.end(), neighbours_b.begin()));
-            Assert::IsTrue(std::is_permutation(expected_neighbours_c.begin(), expected_neighbours_c.end(), neighbours_c.begin()));
 
-            Assert::AreEqual(vertex_c, incident_he_d[0]->twin->origin);
+            Assert::AreEqual(vertex_b, incident_he_c[0]->twin->origin);
         }
 
         TEST_METHOD(DCEL_colinear_top_point_overlap)
@@ -565,10 +485,34 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(f);
             dcel.insert_segment(g);
 
-            DCEL dcel_reverse;
+            test_dcel_two_connected_segments(dcel, pA, pB, pC);
+        }
+
+        TEST_METHOD(DCEL_colinear_top_point_overlap_reverse)
+        {
+            Vec2 pA(2.f, 6.f);
+
+            Vec2 pB(4.f, 6.f);
+            Vec2 pC(6.f, 6.f);
+
+            Segment f(pA, pB);
+            Segment g(pA, pC);
+
+            DCEL dcel;
 
             dcel.insert_segment(g);
             dcel.insert_segment(f);
+
+            Assert::AreEqual(size_t(3), dcel.vertex_count());
+            Assert::AreEqual(size_t(4), dcel.half_edge_count());
+
+            DCEL::DCEL_Vertex* vertex_a = dcel.get_vertex_at_position(pA);
+            DCEL::DCEL_Vertex* vertex_b = dcel.get_vertex_at_position(pB);
+            DCEL::DCEL_Vertex* vertex_c = dcel.get_vertex_at_position(pC);
+
+            Assert::AreEqual(size_t(1), vertex_a->get_incident_half_edges().size());
+            Assert::AreEqual(size_t(2), vertex_b->get_incident_half_edges().size());
+            Assert::AreEqual(size_t(1), vertex_c->get_incident_half_edges().size());
         }
 
         TEST_METHOD(DCEL_colinear_bottom_point_overlap)
@@ -585,31 +529,52 @@ namespace TestTrajectoryHotspots
 
             dcel.insert_segment(f);
             dcel.insert_segment(g);
+        }
+
+        TEST_METHOD(DCEL_colinear_bottom_point_overlap_reverse)
+        {
+            Vec2 pA(2.f, 6.f);
+
+            Vec2 pB(4.f, 6.f);
+            Vec2 pC(6.f, 6.f);
+
+            Segment f(pB, pC);
+            Segment g(pA, pC);
 
             DCEL dcel_reverse;
 
-            dcel.insert_segment(g);
-            dcel.insert_segment(f);
+            dcel_reverse.insert_segment(g);
+            dcel_reverse.insert_segment(f);
         }
 
         //TEST_METHOD(DCEL_colinear_both_points_overlap)
         //{
-            //TODO: Infinite loop?
-            //Vec2 pA(2.f, 6.f);
-            //Vec2 pB(9.f, 6.f);
+        //    //TODO: Infinite loop?
+        //    Vec2 pA(2.f, 6.f);
+        //    Vec2 pB(9.f, 6.f);
         //
-            //Segment f(pA, pB);
-            //Segment g(pA, pB);
+        //    Segment f(pA, pB);
+        //    Segment g(pA, pB);
+        //
+        //    DCEL dcel;
+        //
+        //    dcel.insert_segment(f);
+        //    dcel.insert_segment(g);
+        //}
 
-            //DCEL dcel;
+        //TEST_METHOD(DCEL_colinear_both_points_overlap_reverse)
+        //{
+        //    //TODO: Infinite loop ?
+        //    Vec2 pA(2.f, 6.f);
+        //    Vec2 pB(9.f, 6.f);
         //
-            //dcel.insert_segment(f);
-            //dcel.insert_segment(g);
+        //    Segment f(pA, pB);
+        //    Segment g(pA, pB);
         //
-            //DCEL dcel_reverse;
+        //    DCEL dcel_reverse;
         //
-            //dcel.insert_segment(g);
-            //dcel.insert_segment(f);
+        //    dcel_reverse.insert_segment(g);
+        //    dcel_reverse.insert_segment(f);
         //}
 
         TEST_METHOD(DCEL_Overlap_Same_DCELs)

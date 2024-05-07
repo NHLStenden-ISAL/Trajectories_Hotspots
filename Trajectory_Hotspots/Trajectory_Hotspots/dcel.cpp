@@ -332,17 +332,19 @@ void DCEL::DCEL_Half_Edge::remove_from_cycle()
     //If this half-edge was the first incident half-edge we need to assign it to an arbitrary one in the cycle
     if (origin->incident_half_edge == this)
     {
-        if (next == this)
+        if (twin->next == this)
         {
             //If this half-edge was the only half-edge in the cycle, make this vertex a free vertex
             origin->incident_half_edge = nullptr;
         }
         else
         {
-            origin->incident_half_edge = next;
+            origin->incident_half_edge = twin->next;
         }
     }
 
+    prev = twin;
+    twin->next = this;
     origin = nullptr;
 }
 
@@ -695,6 +697,7 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
             {
                 //Collinear overlap with both top endpoints overlapping
                 //TODO: Only this case can have multiple collinear overlaps.
+                //TODO: We can have multiple top overlays, care with vertex_on_vertex call.
 
                 assert(DCEL_edges[top_segment].original_dcel != DCEL_edges[other_top_segment].original_dcel);
 
@@ -716,19 +719,21 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
                 }
                 else
                 {
-                    //Collinear overlap with bottom endpoints overlapping
+                    //Collinear overlap with top endpoints overlapping
 
-                    Float top_edge_sqrd_length = (DCEL_edges[top_segment].underlying_half_edge->target()->position - DCEL_edges[other_top_segment].underlying_half_edge->origin->position).squared_length();
-                    Float other_top_edge_sqrd_length = (DCEL_edges[other_top_segment].underlying_half_edge->target()->position - DCEL_edges[top_segment].underlying_half_edge->origin->position).squared_length();
+                    Float top_edge_sqrd_length = (DCEL_edges[top_segment].underlying_half_edge->target()->position - DCEL_edges[top_segment].underlying_half_edge->origin->position).squared_length();
+                    Float other_top_edge_sqrd_length = (DCEL_edges[other_top_segment].underlying_half_edge->target()->position - DCEL_edges[other_top_segment].underlying_half_edge->origin->position).squared_length();
 
                     int longer_half_edge_index = top_edge_sqrd_length > other_top_edge_sqrd_length ? top_segment : other_top_segment;
                     int shorter_half_edge_index = top_edge_sqrd_length > other_top_edge_sqrd_length ? other_top_segment : top_segment;
 
                     Vec2 middle_vertex;
-                    overlay_collinear_overlap_top_endpoint(DCEL_edges[longer_half_edge_index].underlying_half_edge, DCEL_edges[shorter_half_edge_index].underlying_half_edge, middle_vertex);
+                    overlay_collinear_overlap_top_endpoint(longer_half_edge_index, shorter_half_edge_index, middle_vertex);
 
-                    //Remove longer from top list and add to event point at new top (bottom was shortened)
-                    if (top_edge_sqrd_length > other_top_edge_sqrd_length)
+                    //Remove longer from top list and add to event point at middle (longer was shortened)
+                    //There can be no more event on the segment between top and middle but there can be one
+                    //on the segment between middle and bottom so we have to add a new top eventpoint at the middle vertex.
+                    if (longer_half_edge_index == top_segment_index)
                     {
                         top_segments.erase(top_segments.begin() + top_segment_index);
                         top_segment_index--;
@@ -797,19 +802,36 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_both_endpoints(const int o
     overlay_vertex_on_vertex(original_top_vertex, overlay_top_vertex);
 }
 
-void DCEL::Overlay_Handler::overlay_collinear_overlap_top_endpoint(DCEL_Half_Edge* longer_edge, DCEL_Half_Edge* shorter_edge, Vec2& middle_vertex)
+void DCEL::Overlay_Handler::overlay_collinear_overlap_top_endpoint(const int longer_edge_index, const int shorter_edge_index, Vec2& middle_vertex)
 {
-    //remove longer edges twin from top vertex and add to middle vertex (shortens longer_edge)
-    longer_edge->twin->remove_from_cycle();
-    original_dcel.add_edge_to_vertex(*longer_edge->twin, *shorter_edge->origin);
+    DCEL::DCEL_Half_Edge* longer_edge = DCEL_edges[longer_edge_index].underlying_half_edge;
+    DCEL::DCEL_Half_Edge* shorter_edge = DCEL_edges[shorter_edge_index].underlying_half_edge;
 
+    DCEL_Vertex* original_vertex_A;
+    DCEL_Vertex* overlay_vertex_A;
+
+    if (DCEL_edges[longer_edge_index].original_dcel)
+    {
+        original_vertex_A = longer_edge->target();
+        overlay_vertex_A = shorter_edge->target();
+    }
+    else
+    {
+        original_vertex_A = shorter_edge->target();
+        overlay_vertex_A = longer_edge->target();
+    }
+
+    //Create a new vertex in the dcel of the longer edge, this becomes the top of the new bottom edge
     middle_vertex = shorter_edge->origin->position;
+    DCEL_Vertex* new_vertex_B = create_new_vertex(middle_vertex, DCEL_edges[longer_edge_index].original_dcel);
+
+    //remove the twin of the longer edges from top vertex and add to middle vertex (shortens longer edge)
+    longer_edge->twin->remove_from_cycle();
+    original_dcel.add_edge_to_vertex(*longer_edge->twin, *new_vertex_B);
+    DCEL_edges[longer_edge_index].edge_segment.end = middle_vertex;
 
     ////Finish this event point by merging both top vertices into the original vertex
-    //DCEL_Vertex* original_top_vertex = DCEL_edges[original_edge_index].underlying_half_edge->target();
-    //DCEL_Vertex* overlay_top_vertex = DCEL_edges[overlay_edge_index].underlying_half_edge->target();
-
-    //overlay_vertex_on_vertex(original_top_vertex, overlay_top_vertex);
+    overlay_vertex_on_vertex(original_vertex_A, overlay_vertex_A);
 }
 
 void DCEL::Overlay_Handler::overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge)
@@ -1056,6 +1078,11 @@ std::vector<const DCEL::DCEL_Half_Edge*> DCEL::DCEL_Vertex::get_incident_half_ed
 
 std::vector<DCEL::DCEL_Half_Edge*> DCEL::DCEL_Vertex::get_incident_half_edges()
 {
+    if (incident_half_edge == nullptr)
+    {
+        return std::vector<DCEL::DCEL_Half_Edge*>();
+    }
+
     const DCEL::DCEL_Half_Edge* starting_half_edge = incident_half_edge;
     DCEL::DCEL_Half_Edge* current_half_edge = incident_half_edge;
 

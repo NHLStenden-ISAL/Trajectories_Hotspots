@@ -191,7 +191,7 @@ private:
         void overlay_vertex_on_vertex(DCEL_Vertex* original_vertex, DCEL_Vertex* overlay_vertex)  const;
 
         bool overlay_handle_collinear_overlaps(const Vec2& event_point);
-        void overlay_collinear_overlap_top_endpoint(DCEL_Half_Edge* longer_edge, DCEL_Half_Edge* shorter_edge, Vec2& middle_vertex);
+        void overlay_collinear_overlap_top_endpoint(const int longer_edge_index, const int shorter_edge_index, Vec2& middle_vertex);
         void overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
         void overlay_collinear_overlap_both_endpoints(const int original_edge_index, const int overlay_edge_index);
         bool overlay_collinear_overlap_partial_or_embedded(const int top_edge_index, const int inner_edge_index);
