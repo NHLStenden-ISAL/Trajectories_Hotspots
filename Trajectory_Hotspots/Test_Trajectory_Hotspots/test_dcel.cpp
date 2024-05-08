@@ -503,16 +503,7 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(g);
             dcel.insert_segment(f);
 
-            Assert::AreEqual(size_t(3), dcel.vertex_count());
-            Assert::AreEqual(size_t(4), dcel.half_edge_count());
-
-            DCEL::DCEL_Vertex* vertex_a = dcel.get_vertex_at_position(pA);
-            DCEL::DCEL_Vertex* vertex_b = dcel.get_vertex_at_position(pB);
-            DCEL::DCEL_Vertex* vertex_c = dcel.get_vertex_at_position(pC);
-
-            Assert::AreEqual(size_t(1), vertex_a->get_incident_half_edges().size());
-            Assert::AreEqual(size_t(2), vertex_b->get_incident_half_edges().size());
-            Assert::AreEqual(size_t(1), vertex_c->get_incident_half_edges().size());
+            test_dcel_two_connected_segments(dcel, pA, pB, pC);
         }
 
         TEST_METHOD(DCEL_colinear_bottom_point_overlap)
@@ -551,35 +542,65 @@ namespace TestTrajectoryHotspots
             test_dcel_two_connected_segments(dcel_reverse, pA, pB, pC);
         }
 
-        //TEST_METHOD(DCEL_colinear_both_points_overlap)
-        //{
-        //    //TODO: Infinite loop?
-        //    Vec2 pA(2.f, 6.f);
-        //    Vec2 pB(9.f, 6.f);
-        //
-        //    Segment f(pA, pB);
-        //    Segment g(pA, pB);
-        //
-        //    DCEL dcel;
-        //
-        //    dcel.insert_segment(f);
-        //    dcel.insert_segment(g);
-        //}
+        void test_dcel_two_connected_segments(const DCEL& dcel, const Vec2& pA, const Vec2& pB) const
+        {
+            Assert::AreEqual(size_t(2), dcel.vertex_count());
+            Assert::AreEqual(size_t(2), dcel.half_edge_count());
 
-        //TEST_METHOD(DCEL_colinear_both_points_overlap_reverse)
-        //{
-        //    //TODO: Infinite loop ?
-        //    Vec2 pA(2.f, 6.f);
-        //    Vec2 pB(9.f, 6.f);
-        //
-        //    Segment f(pA, pB);
-        //    Segment g(pA, pB);
-        //
-        //    DCEL dcel_reverse;
-        //
-        //    dcel_reverse.insert_segment(g);
-        //    dcel_reverse.insert_segment(f);
-        //}
+            DCEL::DCEL_Vertex* vertex_a = dcel.get_vertex_at_position(pA);
+            DCEL::DCEL_Vertex* vertex_b = dcel.get_vertex_at_position(pB);
+
+            Assert::AreEqual(size_t(1), vertex_a->get_incident_half_edges().size());
+            Assert::AreEqual(size_t(1), vertex_b->get_incident_half_edges().size());
+
+            auto incident_he_a = vertex_a->get_incident_half_edges()[0];
+            auto incident_he_b = vertex_b->get_incident_half_edges()[0];
+
+            Assert::AreEqual(incident_he_b, incident_he_a->twin);
+            Assert::AreEqual(incident_he_b, incident_he_a->next);
+            Assert::AreEqual(incident_he_b, incident_he_a->prev);
+
+            Assert::AreEqual(incident_he_a, incident_he_b->twin);
+            Assert::AreEqual(incident_he_a, incident_he_b->next);
+            Assert::AreEqual(incident_he_a, incident_he_b->prev);
+
+            Assert::AreEqual(vertex_b, incident_he_a->twin->origin);
+            Assert::AreEqual(vertex_a, incident_he_b->twin->origin);
+        }
+
+        TEST_METHOD(DCEL_colinear_both_points_overlap)
+        {
+            //TODO: Infinite loop?
+            Vec2 pA(2.f, 6.f);
+            Vec2 pB(9.f, 6.f);
+
+            Segment f(pA, pB);
+            Segment g(pA, pB);
+
+            DCEL dcel;
+
+            dcel.insert_segment(f);
+            dcel.insert_segment(g);
+
+            test_dcel_two_connected_segments(dcel, pA,pB);
+        }
+
+        TEST_METHOD(DCEL_colinear_both_points_overlap_reverse)
+        {
+            //TODO: Infinite loop ?
+            Vec2 pA(2.f, 6.f);
+            Vec2 pB(9.f, 6.f);
+
+            Segment f(pA, pB);
+            Segment g(pA, pB);
+
+            DCEL dcel_reverse;
+
+            dcel_reverse.insert_segment(g);
+            dcel_reverse.insert_segment(f);
+
+            test_dcel_two_connected_segments(dcel_reverse, pA, pB);
+        }
 
         TEST_METHOD(DCEL_Overlap_Same_DCELs)
         {

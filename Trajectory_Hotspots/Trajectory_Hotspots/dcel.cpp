@@ -507,6 +507,9 @@ void DCEL::Overlay_Handler::resolve_edge_intersections()
 
         event_queue.erase(event_queue.begin());
     }
+
+    //In a rare case we register half-edges for deletion, we can handle those now
+    delete_registered_half_edges();
 }
 
 void DCEL::Overlay_Handler::handle_overlay_event(const Vec2& event_point, std::vector<int>& new_intersecting_segments, std::vector<int>& new_top_segments)
@@ -721,11 +724,19 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps(const Vec2& event_
 
                     overlay_collinear_overlap_both_endpoints(original_index, overlay_index);
 
-                    //Remove both from top list
-                    top_segments.erase(top_segments.begin() + other_top_segment_index);
-                    other_top_segment_index--;
-                    top_segments.erase(top_segments.begin() + top_segment_index);
-                    top_segment_index--;
+                    //Remove the overlay segment from the top list
+                    if (!DCEL_edges[top_segment].original_dcel)
+                    {
+                        top_segments.erase(top_segments.begin() + top_segment_index);
+                        top_segment_index--;
+                    }
+                    else
+                    {
+                        top_segments.erase(top_segments.begin() + other_top_segment_index);
+                        other_top_segment_index--;
+                    }
+
+
 
                     top_segments_updated = true;
                 }
@@ -790,27 +801,44 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_both_endpoints(const int o
     DCEL_Half_Edge* original_edge = DCEL_edges[original_edge_index].underlying_half_edge;
     DCEL_Half_Edge* overlay_edge = DCEL_edges[overlay_edge_index].underlying_half_edge;
 
-    //Remove the overlay_edge from the vertices in the overlaying dcel so we dont try to add them again at another event type
+    DCEL_Vertex* original_top_vertex = DCEL_edges[original_edge_index].underlying_half_edge->target();
+    DCEL_Vertex* overlay_top_vertex = DCEL_edges[overlay_edge_index].underlying_half_edge->target();
+
+    //Remove the overlay_edge from the vertices in the overlaying dcel so we don't try to add them again at another event type 
     overlay_edge->remove_from_cycle();
     overlay_edge->twin->remove_from_cycle();
 
+    //Remove the original half-edge from the vertex, we will replace it
+    DCEL_Vertex* original_edge_origin = original_edge->origin;
+    original_edge->remove_from_cycle();
+
     //Make the overlayed edges twin the new main edge (it points up left after this)
     DCEL_Half_Edge* new_original_half_edge = overlay_edge->twin;
-    *new_original_half_edge = *original_edge;
+    *new_original_half_edge->twin = *original_edge->twin;
 
     //Set the adjacent pointers
     original_edge->twin->twin = new_original_half_edge;
     original_edge->next->prev = new_original_half_edge;
     original_edge->prev->next = new_original_half_edge;
 
+    new_original_half_edge->twin = original_edge->twin;
+    new_original_half_edge->next = original_edge->next;
+    new_original_half_edge->prev = original_edge->prev;
+
+    //Add it to the cycle of the old half-edge
+    original_dcel.add_edge_to_vertex(*new_original_half_edge, *original_edge_origin);
+
     //Delete both half-edges, we re-use the twins of each edge to form the new edge
-    to_delete.push_back(original_edge_index);
-    to_delete.push_back(overlay_edge_index);
+    to_delete.push_back(DCEL_edges[original_edge_index].new_edge_index);
+    to_delete.push_back(DCEL_edges[overlay_edge_index].new_edge_index);
+
+    //Set the underlying pointer to the new half-edge, 
+    // we can do this because the index of the to deleted half-edges stay the same
+    // and the new half-edge will only be used in a bottom event which has no delete cases.
+    // (Note: this feels off, can we make this cleaner?)
+    DCEL_edges[original_edge_index].underlying_half_edge = new_original_half_edge;
 
     //Finish this event point by merging both top vertices into the original vertex
-    DCEL_Vertex* original_top_vertex = DCEL_edges[original_edge_index].underlying_half_edge->target();
-    DCEL_Vertex* overlay_top_vertex = DCEL_edges[overlay_edge_index].underlying_half_edge->target();
-
     overlay_vertex_on_vertex(original_top_vertex, overlay_top_vertex);
 }
 
@@ -854,6 +882,7 @@ void DCEL::Overlay_Handler::overlay_collinear_overlap_bottom_endpoint(DCEL_Half_
     DCEL_Vertex* vertex_B = overlay_edge->target();
 
     //To reduce the complexity of the overlay algorithm we need to make sure the bottom segment is from the original dcel
+    //(This is because we want to keep the vertex that originated from the original dcel)
     if (original_edge_sqrd_length > overlay_edge_sqrd_length)
     {
         DCEL_Vertex* vertex_A = original_edge->target();
@@ -1263,6 +1292,23 @@ void DCEL::Overlay_Handler::get_vertices_from_bottom_segments(DCEL_Vertex*& orig
     }
 }
 
+void DCEL::Overlay_Handler::delete_registered_half_edges()
+{
+    //Sort in reverse order
+    std::sort(to_delete.begin(), to_delete.end(), std::greater<>());
+
+    //Swap to remove objects to the back and resize to delete
+    size_t new_size = original_dcel.half_edges.size();
+
+    for (size_t i = 0; i < to_delete.size(); i++)
+    {
+        std::swap(original_dcel.half_edges[to_delete[i]], original_dcel.half_edges[original_dcel.half_edges.size() - 1 - i]);
+        new_size--;
+    }
+
+    original_dcel.half_edges.resize(new_size);
+}
+
 DCEL::Overlay_Handler::Overlay_Handler(DCEL& original_dcel, DCEL& overlaying_dcel) : original_dcel(original_dcel), overlaying_dcel(overlaying_dcel)
 {
     size_t original_half_edge_count = original_dcel.half_edge_count();
@@ -1281,7 +1327,7 @@ DCEL::Overlay_Handler::Overlay_Handler(DCEL& original_dcel, DCEL& overlaying_dce
         if (original_dcel.half_edges[i]->is_orientated_top_left())
         {
             bool is_original_half_edge = i < original_half_edge_count;
-            DCEL_edges.emplace_back(original_dcel.half_edges[i].get(), is_original_half_edge);
+            DCEL_edges.emplace_back(original_dcel.half_edges[i].get(), is_original_half_edge, i);
         }
     }
 

@@ -100,10 +100,11 @@ public:
     class DCEL_Overlay_Edge_Wrapper
     {
     public:
-        DCEL_Overlay_Edge_Wrapper(DCEL_Half_Edge* underlying_half_edge, bool original_dcel) :
+        DCEL_Overlay_Edge_Wrapper(DCEL_Half_Edge* underlying_half_edge, bool original_dcel, int new_edge_index) :
             underlying_half_edge(underlying_half_edge),
             edge_segment(underlying_half_edge->origin->position, underlying_half_edge->twin->origin->position),
-            original_dcel(original_dcel)
+            original_dcel(original_dcel),
+            new_edge_index(new_edge_index)
         {};
 
         //Returns the x-coordinate of the intersection with the horizontal line at y, or infinity if it lies on the segment
@@ -124,6 +125,7 @@ public:
         DCEL_Half_Edge* underlying_half_edge;
         Segment edge_segment;
         bool original_dcel;
+        int new_edge_index;
     };
 
     size_t vertex_count() const { return vertices.size(); };
@@ -210,6 +212,8 @@ private:
             const std::vector<int>& new_intersecting_segments,
             const std::vector<int>& new_top_segments,
             const Vec2& event_point);
+
+        void delete_registered_half_edges();
 
         DCEL& original_dcel;
         DCEL& overlaying_dcel;
