@@ -1231,6 +1231,9 @@ void DCEL::Overlay_Handler::overlay_create_intersection_info(
 {
     this->top_segments = new_top_segments;
 
+    this->bottom_segments.clear();
+    this->inner_segments.clear();
+
     for (int i : new_intersecting_segments)
     {
         if (*(DCEL_edges[i].get_bottom_point()) == event_point)

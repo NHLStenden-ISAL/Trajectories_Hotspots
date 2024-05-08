@@ -600,6 +600,122 @@ namespace TestTrajectoryHotspots
             test_dcel_two_connected_segments(dcel_reverse, pA, pB);
         }
 
+        TEST_METHOD(DCEL_colinear_in_larger_arrangement)
+        {
+            //Test collinear overlaps embedded in between other segments
+            //We do this by creating two dcels that mirror each other
+
+            Vec2 pA_1(70.f, 80.f);
+            Vec2 pB_1(100.f, 70.f);
+            Vec2 pC_1(90.f, 60.f);
+            Vec2 pD_1(100.f, 50.f);
+            Vec2 pE_1(90.f, 50.f);
+            Vec2 pF_1(90.f, 40.f);
+            Vec2 pG_1(80.f, 30.f);
+            Vec2 pH_1(100.f, 20.f);
+            Vec2 pI_1(90.f, 10.f);
+            Vec2 pJ_1(110.f, 10.f);
+
+            Vec2 pA_2(110.f, 80.f);
+            Vec2 pB_2(80.f, 70.f);
+            Vec2 pC_2(90.f, 60.f);
+            Vec2 pD_2(80.f, 50.f);
+            Vec2 pE_2(90.f, 50.f);
+            Vec2 pF_2(90.f, 40.f);
+            Vec2 pG_2(100.f, 30.f);
+            Vec2 pH_2(80.f, 20.f);
+            Vec2 pI_2(70.f, 10.f);
+            Vec2 pJ_2(90.f, 10.f);
+
+            Segment a_1(pA_1, pC_1);
+            Segment b_1(pB_1, pC_1);
+            Segment c_1(pC_1, pE_1);
+            Segment d_1(pE_1, pD_1);
+            Segment e_1(pE_1, pF_1);
+            Segment f_1(pD_1, pF_1);
+            Segment g_1(pF_1, pG_1);
+            Segment h_1(pF_1, pH_1);
+            Segment i_1(pG_1, pH_1);
+            Segment j_1(pH_1, pI_1);
+            Segment k_1(pH_1, pJ_1);
+            Segment l_1(pI_1, pJ_1);
+
+            Segment a_2(pA_2, pC_2);
+            Segment b_2(pB_2, pC_2);
+            Segment c_2(pC_2, pE_2);
+            Segment d_2(pE_2, pD_2);
+            Segment e_2(pE_2, pF_2);
+            Segment f_2(pD_2, pF_2);
+            Segment g_2(pF_2, pG_2);
+            Segment h_2(pF_2, pH_2);
+            Segment i_2(pG_2, pH_2);
+            Segment j_2(pH_2, pI_2);
+            Segment k_2(pH_2, pJ_2);
+            Segment l_2(pI_2, pJ_2);
+
+            DCEL dcel;
+            dcel.insert_segment(a_1);
+            dcel.insert_segment(b_1);
+            dcel.insert_segment(c_1);
+            dcel.insert_segment(d_1);
+            dcel.insert_segment(e_1);
+            dcel.insert_segment(f_1);
+            dcel.insert_segment(g_1);
+            dcel.insert_segment(h_1);
+            dcel.insert_segment(i_1);
+            dcel.insert_segment(j_1);
+            dcel.insert_segment(k_1);
+            dcel.insert_segment(l_1);
+
+            DCEL::DCEL_Vertex* pA_1_p = dcel.get_vertex_at_position(pA_1);
+            DCEL::DCEL_Vertex* pB_1_p = dcel.get_vertex_at_position(pB_1);
+            DCEL::DCEL_Vertex* pC_1_p = dcel.get_vertex_at_position(pC_1);
+            DCEL::DCEL_Vertex* pD_1_p = dcel.get_vertex_at_position(pD_1);
+            DCEL::DCEL_Vertex* pE_1_p = dcel.get_vertex_at_position(pE_1);
+            DCEL::DCEL_Vertex* pF_1_p = dcel.get_vertex_at_position(pF_1);
+            DCEL::DCEL_Vertex* pG_1_p = dcel.get_vertex_at_position(pG_1);
+            DCEL::DCEL_Vertex* pH_1_p = dcel.get_vertex_at_position(pH_1);
+            DCEL::DCEL_Vertex* pI_1_p = dcel.get_vertex_at_position(pI_1);
+            DCEL::DCEL_Vertex* pJ_1_p = dcel.get_vertex_at_position(pJ_1);
+
+            std::vector<DCEL::DCEL_Half_Edge*> pA_1_adjacent_he = pA_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pB_1_adjacent_he = pB_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pC_1_adjacent_he = pC_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pD_1_adjacent_he = pD_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pE_1_adjacent_he = pE_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pF_1_adjacent_he = pF_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pG_1_adjacent_he = pG_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pH_1_adjacent_he = pH_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pI_1_adjacent_he = pI_1_p->get_incident_half_edges();
+            std::vector<DCEL::DCEL_Half_Edge*> pJ_1_adjacent_he = pJ_1_p->get_incident_half_edges();
+
+            Assert::AreEqual(size_t(1), pA_1_adjacent_he.size());
+            Assert::AreEqual(size_t(1), pB_1_adjacent_he.size());
+            Assert::AreEqual(size_t(3), pC_1_adjacent_he.size());
+            Assert::AreEqual(size_t(2), pD_1_adjacent_he.size());
+            Assert::AreEqual(size_t(3), pE_1_adjacent_he.size());
+            Assert::AreEqual(size_t(4), pF_1_adjacent_he.size());
+            Assert::AreEqual(size_t(2), pG_1_adjacent_he.size());
+            Assert::AreEqual(size_t(4), pH_1_adjacent_he.size());
+            Assert::AreEqual(size_t(2), pI_1_adjacent_he.size());
+            Assert::AreEqual(size_t(2), pJ_1_adjacent_he.size());
+
+            //DCEL dcel_reversed;
+            //dcel_reversed.insert_segment(a_2);
+            //dcel_reversed.insert_segment(b_2);
+            //dcel_reversed.insert_segment(c_2);
+            //dcel_reversed.insert_segment(d_2);
+            //dcel_reversed.insert_segment(e_2);
+            //dcel_reversed.insert_segment(f_2);
+            //dcel_reversed.insert_segment(g_2);
+            //dcel_reversed.insert_segment(h_2);
+            //dcel_reversed.insert_segment(i_2);
+            //dcel_reversed.insert_segment(j_2);
+            //dcel_reversed.insert_segment(k_2);
+            //dcel_reversed.insert_segment(l_2);
+
+            //dcel.overlay_dcel(dcel_reversed);
+        }
         TEST_METHOD(DCEL_Overlap_Same_DCELs)
         {
             //Implement test that overlaps the same DCEL layouts
