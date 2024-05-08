@@ -570,7 +570,6 @@ namespace TestTrajectoryHotspots
 
         TEST_METHOD(DCEL_colinear_both_points_overlap)
         {
-            //TODO: Infinite loop?
             Vec2 pA(2.f, 6.f);
             Vec2 pB(9.f, 6.f);
 
@@ -582,12 +581,11 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(f);
             dcel.insert_segment(g);
 
-            test_dcel_two_connected_segments(dcel, pA,pB);
+            test_dcel_two_connected_segments(dcel, pA, pB);
         }
 
         TEST_METHOD(DCEL_colinear_both_points_overlap_reverse)
         {
-            //TODO: Infinite loop ?
             Vec2 pA(2.f, 6.f);
             Vec2 pB(9.f, 6.f);
 
