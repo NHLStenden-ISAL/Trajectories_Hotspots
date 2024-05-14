@@ -49,14 +49,13 @@ namespace Segment_Intersection_Sweep_Line
         std::vector<int> inner_segments;
         std::vector<int> bottom_segments;
 
-        Float line_pos = event_point.y;
-        status_structure.set_line_position(line_pos);
+        status_structure.set_current_event_position(event_point);
 
         int left_neighbour = -1;
         int right_neighbour = -1;
 
         //Get all nodes containing segments that intersect this event point
-        std::vector<int> ordered_intersecting_segments = status_structure.get_all_nodes_on_point(segments, event_point, left_neighbour, right_neighbour);
+        std::vector<int> ordered_intersecting_segments = status_structure.get_all_nodes_on_point(segments, left_neighbour, right_neighbour);
 
         int most_left_segment = -1;
         int most_right_segment = -1;
@@ -223,7 +222,7 @@ namespace Segment_Intersection_Sweep_Line
         }
 
         //Initialize status structure with the highest event point
-        Sweep_Line_Status_structure<SegmentT> status_structure(event_queue.begin()->first.y);
+        Sweep_Line_Status_structure<SegmentT> status_structure(event_queue.begin()->first);
 
         std::vector<Vec2> intersections;
 

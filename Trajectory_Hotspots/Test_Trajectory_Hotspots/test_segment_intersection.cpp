@@ -158,7 +158,7 @@ namespace TestTrajectoryHotspots
                 event_queue[*test_segments.at(i).get_bottom_point()];
             }
 
-            Sweep::Sweep_Line_Status_structure<Segment> status_structure(event_queue.begin()->first.y);
+            Sweep::Sweep_Line_Status_structure<Segment> status_structure(event_queue.begin()->first);
 
             int event_count = 0;
             std::vector<int> test;
@@ -179,7 +179,7 @@ namespace TestTrajectoryHotspots
                 event_queue.erase(event_queue.begin());
             }
 
-            std::vector<int> correct{ 2, 0, 1, 3 };
+            std::vector<int> correct{ 3, 2, 0, 1 };
 
             Assert::IsTrue(test == correct);
         }

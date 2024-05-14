@@ -479,7 +479,7 @@ void DCEL::Overlay_Handler::resolve_edge_intersections()
 
     //Initialize status structure with the highest event point
     namespace Sweep = Segment_Intersection_Sweep_Line;
-    Sweep::Sweep_Line_Status_structure<DCEL_Overlay_Edge_Wrapper> status_structure(event_queue.begin()->first.y);
+    Sweep::Sweep_Line_Status_structure<DCEL_Overlay_Edge_Wrapper> status_structure(event_queue.begin()->first);
 
     while (!event_queue.empty())
     {
