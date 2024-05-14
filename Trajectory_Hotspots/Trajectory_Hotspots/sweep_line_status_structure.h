@@ -239,7 +239,9 @@ namespace Segment_Intersection_Sweep_Line
         //TODO: This remove function is a bit order sensitive.. if two segments lie on the same line it defaults to right?? Use order function like in insert?
         std::unique_ptr<Node> new_root = std::move(node);
 
-        Float current_x_position = segments.at(segment_to_remove).y_intersect(current_event_point.y);
+        Float remove_x_position = segments.at(segment_to_remove).y_intersect(current_event_point.y);
+
+        Float node_x_position = segments.at(new_root->segment).y_intersect(current_event_point.y);
 
         if (segment_to_remove == new_root->segment)
         {
@@ -278,7 +280,7 @@ namespace Segment_Intersection_Sweep_Line
                 }
             }
         }
-        else if (current_x_position <= segments.at(new_root->segment).y_intersect(current_event_point.y))
+        else if (remove_x_position <= node_x_position || (remove_x_position.is_inf() && node_x_position >= current_event_point.x))
         {
             new_root->left = remove_from_parent(std::move(new_root->left), segments, segment_to_remove);
 
@@ -585,6 +587,12 @@ namespace Segment_Intersection_Sweep_Line
         {
             //TODO: Use event x here, also at the sister function.
             Float current_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+            if (current_x_position.is_inf())
+            {
+                current_x_position = current_event_point.x;
+            }
+
             const Node* current_parent = parent;
             while (current_x_position <= segments.at(current_parent->segment).y_intersect(current_event_point.y))
             {
@@ -624,6 +632,12 @@ namespace Segment_Intersection_Sweep_Line
         if (parent != nullptr)
         {
             Float current_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+            if (current_x_position.is_inf())
+            {
+                current_x_position = current_event_point.x;
+            }
+
             const Node* current_parent = parent;
             while (current_x_position >= segments.at(current_parent->segment).y_intersect(current_event_point.y))
             {
