@@ -28,6 +28,9 @@ namespace Segment_Intersection_Sweep_Line
             int get_right_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
             int get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
 
+            bool right_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
+            bool left_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
+
             std::vector<int> get_all_neighbours(const std::vector<SegmentT>& segments, const Vec2& current_event_point,
                 int& left_neighbour, int& right_neighbour) const;
 
@@ -562,6 +565,19 @@ namespace Segment_Intersection_Sweep_Line
         return left_height - right_height;
     }
 
+    template<typename SegmentT>
+    bool Sweep_Line_Status_structure<SegmentT>::Node::right_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    {
+        Float node_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+        if (node_x_position.is_inf())
+        {
+            return current_event_point.x >= segments.at(segment).get_left_point()->x;
+        }
+
+        return node_x_position >= current_event_point.x;
+    }
+
     // Get Left neighbour of the Segment not the node!
     template<typename SegmentT>
     int Sweep_Line_Status_structure<SegmentT>::Node::get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
@@ -585,16 +601,8 @@ namespace Segment_Intersection_Sweep_Line
         //No left subtree, one of the parents could be the left neighbour
         if (parent != nullptr)
         {
-            //TODO: Use event x here, also at the sister function.
-            Float current_x_position = segments.at(segment).y_intersect(current_event_point.y);
-
-            if (current_x_position.is_inf())
-            {
-                current_x_position = current_event_point.x;
-            }
-
             const Node* current_parent = parent;
-            while (current_x_position <= segments.at(current_parent->segment).y_intersect(current_event_point.y))
+            while (current_parent->right_or_on_event_point(segments, current_event_point))
             {
                 current_parent = current_parent->parent;
                 if (current_parent == nullptr)
@@ -607,6 +615,19 @@ namespace Segment_Intersection_Sweep_Line
         }
 
         return -1;
+    }
+
+    template<typename SegmentT>
+    bool Sweep_Line_Status_structure<SegmentT>::Node::left_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    {
+        Float node_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+        if (node_x_position.is_inf())
+        {
+            return current_event_point.x <= segments.at(segment).get_right_point()->x;
+        }
+
+        return node_x_position <= current_event_point.x;
     }
 
     template<typename SegmentT>
@@ -639,7 +660,7 @@ namespace Segment_Intersection_Sweep_Line
             }
 
             const Node* current_parent = parent;
-            while (current_x_position >= segments.at(current_parent->segment).y_intersect(current_event_point.y))
+            while (current_parent->left_or_on_event_point(segments, current_event_point))
             {
                 current_parent = current_parent->parent;
                 if (current_parent == nullptr)
@@ -655,8 +676,7 @@ namespace Segment_Intersection_Sweep_Line
     }
 
     template<typename SegmentT>
-    std::vector<int> Sweep_Line_Status_structure<SegmentT>::Node::get_all_neighbours(const std::vector<SegmentT>& segments, const Vec2& current_event_point, int& left_neighbour, int& right_neighbour
-    ) const
+    std::vector<int> Sweep_Line_Status_structure<SegmentT>::Node::get_all_neighbours(const std::vector<SegmentT>& segments, const Vec2& current_event_point, int& left_neighbour, int& right_neighbour) const
     {
         //TODO: Cleanup please, we can probably just do this left to right with an inorder walk from the found root node.
 

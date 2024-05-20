@@ -600,6 +600,19 @@ namespace TestTrajectoryHotspots
             test_dcel_two_connected_segments(dcel_reverse, pA, pB);
         }
 
+        void test_adjacent_he(const DCEL& dcel, std::vector<Vec2>& points, const std::vector<size_t>& expected_adjacent_he) const
+        {
+            for (size_t i = 0; i < points.size(); i++)
+            {
+                DCEL::DCEL_Vertex* dcel_vec = dcel.get_vertex_at_position(points.at(i));
+                Assert::IsNotNull(dcel_vec, L"Given point does not exist in the DCEL.");
+
+                size_t incident_half_edge_size = dcel_vec->get_incident_half_edges().size();
+
+                Assert::AreEqual(expected_adjacent_he.at(i), incident_half_edge_size, L"Incorrect amount of adjacent half-edges around DCEL vertex.");
+            }
+        }
+
         TEST_METHOD(DCEL_colinear_in_larger_arrangement)
         {
             //Test collinear overlaps embedded in between other segments
@@ -667,54 +680,34 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(k_1);
             dcel.insert_segment(l_1);
 
-            DCEL::DCEL_Vertex* pA_1_p = dcel.get_vertex_at_position(pA_1);
-            DCEL::DCEL_Vertex* pB_1_p = dcel.get_vertex_at_position(pB_1);
-            DCEL::DCEL_Vertex* pC_1_p = dcel.get_vertex_at_position(pC_1);
-            DCEL::DCEL_Vertex* pD_1_p = dcel.get_vertex_at_position(pD_1);
-            DCEL::DCEL_Vertex* pE_1_p = dcel.get_vertex_at_position(pE_1);
-            DCEL::DCEL_Vertex* pF_1_p = dcel.get_vertex_at_position(pF_1);
-            DCEL::DCEL_Vertex* pG_1_p = dcel.get_vertex_at_position(pG_1);
-            DCEL::DCEL_Vertex* pH_1_p = dcel.get_vertex_at_position(pH_1);
-            DCEL::DCEL_Vertex* pI_1_p = dcel.get_vertex_at_position(pI_1);
-            DCEL::DCEL_Vertex* pJ_1_p = dcel.get_vertex_at_position(pJ_1);
 
-            std::vector<DCEL::DCEL_Half_Edge*> pA_1_adjacent_he = pA_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pB_1_adjacent_he = pB_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pC_1_adjacent_he = pC_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pD_1_adjacent_he = pD_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pE_1_adjacent_he = pE_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pF_1_adjacent_he = pF_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pG_1_adjacent_he = pG_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pH_1_adjacent_he = pH_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pI_1_adjacent_he = pI_1_p->get_incident_half_edges();
-            std::vector<DCEL::DCEL_Half_Edge*> pJ_1_adjacent_he = pJ_1_p->get_incident_half_edges();
+            //Test if all vertices have the correct amount of adjacent half-edges
+            std::vector<Vec2> points = { pA_1, pB_1, pC_1, pD_1, pE_1, pF_1, pG_1, pH_1, pI_1, pJ_1 };
+            std::vector<size_t> expected_adjacent_he = { 1, 1, 3, 2, 3, 4, 2, 4, 2, 2 };
 
-            Assert::AreEqual(size_t(1), pA_1_adjacent_he.size());
-            Assert::AreEqual(size_t(1), pB_1_adjacent_he.size());
-            Assert::AreEqual(size_t(3), pC_1_adjacent_he.size());
-            Assert::AreEqual(size_t(2), pD_1_adjacent_he.size());
-            Assert::AreEqual(size_t(3), pE_1_adjacent_he.size());
-            Assert::AreEqual(size_t(4), pF_1_adjacent_he.size());
-            Assert::AreEqual(size_t(2), pG_1_adjacent_he.size());
-            Assert::AreEqual(size_t(4), pH_1_adjacent_he.size());
-            Assert::AreEqual(size_t(2), pI_1_adjacent_he.size());
-            Assert::AreEqual(size_t(2), pJ_1_adjacent_he.size());
+            test_adjacent_he(dcel, points, expected_adjacent_he);
 
-            //DCEL dcel_reversed;
-            //dcel_reversed.insert_segment(a_2);
-            //dcel_reversed.insert_segment(b_2);
-            //dcel_reversed.insert_segment(c_2);
-            //dcel_reversed.insert_segment(d_2);
-            //dcel_reversed.insert_segment(e_2);
-            //dcel_reversed.insert_segment(f_2);
-            //dcel_reversed.insert_segment(g_2);
-            //dcel_reversed.insert_segment(h_2);
-            //dcel_reversed.insert_segment(i_2);
-            //dcel_reversed.insert_segment(j_2);
-            //dcel_reversed.insert_segment(k_2);
-            //dcel_reversed.insert_segment(l_2);
+            DCEL dcel_reversed;
+            dcel_reversed.insert_segment(a_2);
+            dcel_reversed.insert_segment(b_2);
+            dcel_reversed.insert_segment(c_2);
+            dcel_reversed.insert_segment(d_2);
+            dcel_reversed.insert_segment(e_2);
+            dcel_reversed.insert_segment(f_2);
+            dcel_reversed.insert_segment(g_2);
+            dcel_reversed.insert_segment(h_2);
+            dcel_reversed.insert_segment(i_2);
+            dcel_reversed.insert_segment(j_2);
+            dcel_reversed.insert_segment(k_2);
+            dcel_reversed.insert_segment(l_2);
 
-            //dcel.overlay_dcel(dcel_reversed);
+            std::vector<Vec2> points_reversed = { pA_2, pB_2, pC_2, pD_2, pE_2, pF_2, pG_2, pH_2, pI_2, pJ_2 };
+            std::vector<size_t> expected_adjacent_he_reversed = { 1, 1, 3, 2, 3, 4, 2, 4, 2, 2 };
+
+            test_adjacent_he(dcel_reversed, points_reversed, expected_adjacent_he_reversed);
+
+            dcel.overlay_dcel(dcel_reversed);
+
         }
         TEST_METHOD(DCEL_Overlap_Same_DCELs)
         {
