@@ -118,6 +118,8 @@ public:
         DCEL_Vertex* get_top_dcel_vertex();
         DCEL_Vertex* get_bottom_dcel_vertex();
 
+        void set_to_underlying_half_edge();
+
         Segment::Intersection_Type intersects(const DCEL_Overlay_Edge_Wrapper& other, Vec2& intersection_point) const;
 
         DCEL_Vertex* get_vertex_on_point(const Vec2& point);
@@ -193,6 +195,8 @@ private:
         void overlay_vertex_on_vertex(DCEL_Vertex* original_vertex, DCEL_Vertex* overlay_vertex)  const;
 
         bool overlay_handle_collinear_overlaps(const Vec2& event_point);
+        bool overlay_handle_collinear_overlaps_inner(const Vec2& event_point, DCEL_Vertex*& original_vertex, DCEL_Vertex*& overlay_vertex);
+        bool overlay_handle_collinear_overlaps_top(const Vec2& event_point, DCEL_Vertex*& original_vertex, DCEL_Vertex*& overlay_vertex);
         void overlay_collinear_overlap_top_endpoint(const int longer_edge_index, const int shorter_edge_index, Vec2& middle_vertex);
         void overlay_collinear_overlap_bottom_endpoint(DCEL_Half_Edge* original_edge, DCEL_Half_Edge* overlay_edge);
         void overlay_collinear_overlap_both_endpoints(const int original_edge_index, const int overlay_edge_index);
