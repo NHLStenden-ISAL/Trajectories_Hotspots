@@ -568,7 +568,6 @@ namespace Segment_Intersection_Sweep_Line
     template<typename SegmentT>
     bool Sweep_Line_Status_structure<SegmentT>::Node::right_of_segment(const std::vector<SegmentT>& segments, const SegmentT& query_segment, const Vec2& current_event_point, const bool include_intersecting) const
     {
-        //TODO: Angle memes and rename to right_of_segment
         Float node_x_position = segments.at(segment).y_intersect(current_event_point.y);
 
 

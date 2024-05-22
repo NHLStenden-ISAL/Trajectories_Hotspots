@@ -113,13 +113,12 @@ namespace Segment_Intersection_Sweep_Line
             }
 
             //If the neighbour of this inserted segment does not intersect the event point, this segment is the new outer segment.
-            //TODO: right side of these checks are useless?
-            if (new_left_neighbour == left_neighbour || left_neighbour == -1)
+            if (new_left_neighbour == left_neighbour)
             {
                 most_left_segment = segment;
             }
 
-            if (new_right_neighbour == right_neighbour || right_neighbour == -1)
+            if (new_right_neighbour == right_neighbour)
             {
                 most_right_segment = segment;
             }
