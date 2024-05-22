@@ -746,7 +746,7 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps_top(const Vec2& ev
 
             if (top_angle == other_top_angle)
             {
-                //Collinear overlap with both top endpoints overlapping
+                //Collinear overlap with both endpoints overlapping
                 //TODO: Only this case can have multiple collinear overlaps.
                 //TODO: We can have multiple top overlays, care with vertex_on_vertex call.
 
@@ -801,7 +801,7 @@ bool DCEL::Overlay_Handler::overlay_handle_collinear_overlaps_top(const Vec2& ev
                     //Remove longer from top list and add to event point at the middle vertex (longer was shortened)
                     //There can be no more event on the segment between top and middle vertices but there can be one
                     //on the segment between the middle and bottom vertices so we have to add a new top eventpoint at the middle vertex.
-                    if (longer_half_edge_index == top_segment_index)
+                    if (longer_half_edge_index == top_segment)
                     {
                         top_segments.erase(top_segments.begin() + top_segment_index);
                         top_segment_index--;

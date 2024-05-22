@@ -25,11 +25,11 @@ namespace Segment_Intersection_Sweep_Line
 
             void calculate_height();
             int height_difference();
-            int get_right_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
-            int get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
+            int get_right_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point, const bool intersecting = true) const;
+            int get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point, const bool intersecting = true) const;
 
-            bool right_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
-            bool left_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const;
+            bool right_of_segment(const std::vector<SegmentT>& segments, const SegmentT& query_segment, const Vec2& current_event_point, const bool intersecting = true) const;
+            bool left_of_segment(const std::vector<SegmentT>& segments, const SegmentT& query_segment, const Vec2& current_event_point, const bool intersecting = true) const;
 
             std::vector<int> get_all_neighbours(const std::vector<SegmentT>& segments, const Vec2& current_event_point,
                 int& left_neighbour, int& right_neighbour) const;
@@ -566,9 +566,28 @@ namespace Segment_Intersection_Sweep_Line
     }
 
     template<typename SegmentT>
-    bool Sweep_Line_Status_structure<SegmentT>::Node::right_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    bool Sweep_Line_Status_structure<SegmentT>::Node::right_of_segment(const std::vector<SegmentT>& segments, const SegmentT& query_segment, const Vec2& current_event_point, const bool include_intersecting) const
     {
+        //TODO: Angle memes and rename to right_of_segment
         Float node_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+
+        if (node_x_position == current_event_point.x)
+        {
+            //Do we include segments intersecting on the same point?
+            if (!include_intersecting)
+            {
+                return true;
+            }
+
+            //query < this;
+            Float query_angle = Vec2::pseudo_angle(current_event_point, *query_segment.get_top_point());
+            Float this_angle = Vec2::pseudo_angle(current_event_point, *segments.at(segment).get_top_point());
+
+            //If the counter clockwise angle of the query segment is smaller than the current segment
+            //the current segment is to the right below the event point.
+            return query_angle < this_angle;
+        }
 
         if (node_x_position.is_inf())
         {
@@ -580,7 +599,7 @@ namespace Segment_Intersection_Sweep_Line
 
     // Get Left neighbour of the Segment not the node!
     template<typename SegmentT>
-    int Sweep_Line_Status_structure<SegmentT>::Node::get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    int Sweep_Line_Status_structure<SegmentT>::Node::get_left_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point, const bool include_intersecting) const
     {
         //The left neighbour is the right most leaf in the left subtree or one of the parent nodes
 
@@ -602,7 +621,7 @@ namespace Segment_Intersection_Sweep_Line
         if (parent != nullptr)
         {
             const Node* current_parent = parent;
-            while (current_parent->right_or_on_event_point(segments, current_event_point))
+            while (current_parent->right_of_segment(segments, segments[segment], current_event_point, include_intersecting))
             {
                 current_parent = current_parent->parent;
                 if (current_parent == nullptr)
@@ -618,9 +637,26 @@ namespace Segment_Intersection_Sweep_Line
     }
 
     template<typename SegmentT>
-    bool Sweep_Line_Status_structure<SegmentT>::Node::left_or_on_event_point(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    bool Sweep_Line_Status_structure<SegmentT>::Node::left_of_segment(const std::vector<SegmentT>& segments, const SegmentT& query_segment, const Vec2& current_event_point, const bool include_intersecting) const
     {
         Float node_x_position = segments.at(segment).y_intersect(current_event_point.y);
+
+        if (node_x_position == current_event_point.x)
+        {
+            //Do we include segments intersecting on the same point?
+            if (!include_intersecting)
+            {
+                return true;
+            }
+
+            //query > this;
+            Float query_angle = Vec2::pseudo_angle(current_event_point, *query_segment.get_top_point());
+            Float this_angle = Vec2::pseudo_angle(current_event_point, *segments.at(segment).get_top_point());
+
+            //If the counter clockwise angle of the query segment is smaller than the current segment
+            //the current segment is to the left below the event point.
+            return query_angle > this_angle;
+        }
 
         if (node_x_position.is_inf())
         {
@@ -631,7 +667,7 @@ namespace Segment_Intersection_Sweep_Line
     }
 
     template<typename SegmentT>
-    int Sweep_Line_Status_structure<SegmentT>::Node::get_right_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point) const
+    int Sweep_Line_Status_structure<SegmentT>::Node::get_right_neighbour(const std::vector<SegmentT>& segments, const Vec2& current_event_point, const bool include_intersecting) const
     {
         //The right neighbour is the left most leaf in the right subtree
 
@@ -652,15 +688,8 @@ namespace Segment_Intersection_Sweep_Line
         //No right subtree, one of the parents could be the right neighbour
         if (parent != nullptr)
         {
-            Float current_x_position = segments.at(segment).y_intersect(current_event_point.y);
-
-            if (current_x_position.is_inf())
-            {
-                current_x_position = current_event_point.x;
-            }
-
             const Node* current_parent = parent;
-            while (current_parent->left_or_on_event_point(segments, current_event_point))
+            while (current_parent->left_of_segment(segments, segments[segment], current_event_point, include_intersecting))
             {
                 current_parent = current_parent->parent;
                 if (current_parent == nullptr)
@@ -692,7 +721,7 @@ namespace Segment_Intersection_Sweep_Line
         }
 
         //Set the first left neighbour that doesn't intersect (the left neighbour of the left most intersecting node)
-        left_neighbour = neighbouring_nodes.back()->get_left_neighbour(segments, current_event_point);
+        left_neighbour = neighbouring_nodes.back()->get_left_neighbour(segments, current_event_point, false);
 
         //Report the found segments in order from left to right
         for (auto node_it = neighbouring_nodes.rbegin(); node_it != neighbouring_nodes.rend(); ++node_it)
@@ -711,7 +740,7 @@ namespace Segment_Intersection_Sweep_Line
         if (!neighbouring_nodes.empty())
         {
             //Set the first right neighbour that doesn't intersect
-            right_neighbour = neighbouring_nodes.back()->get_right_neighbour(segments, current_event_point);
+            right_neighbour = neighbouring_nodes.back()->get_right_neighbour(segments, current_event_point, false);
 
             //Report the found segments in order from left to right
             for (const Node* node : neighbouring_nodes)
@@ -722,7 +751,7 @@ namespace Segment_Intersection_Sweep_Line
         else
         {
             //If there are no right neighbours, get the right neighbour of the root node
-            right_neighbour = this->get_right_neighbour(segments, current_event_point);
+            right_neighbour = this->get_right_neighbour(segments, current_event_point, false);
         }
 
         return ordered_intersecting_segments;

@@ -625,9 +625,11 @@ namespace TestTrajectoryHotspots
             Vec2 pE_1(90.f, 50.f);
             Vec2 pF_1(90.f, 40.f);
             Vec2 pG_1(80.f, 30.f);
-            Vec2 pH_1(100.f, 20.f);
-            Vec2 pI_1(90.f, 10.f);
+            Vec2 pH_1(110.f, 20.f);
+            Vec2 pI_1(85.f, 10.f);
             Vec2 pJ_1(110.f, 10.f);
+            Vec2 pK_1(100.f, 40.f);
+            Vec2 pL_1(80.f, 60.f);
 
             Vec2 pA_2(110.f, 80.f);
             Vec2 pB_2(80.f, 70.f);
@@ -636,35 +638,43 @@ namespace TestTrajectoryHotspots
             Vec2 pE_2(90.f, 50.f);
             Vec2 pF_2(90.f, 40.f);
             Vec2 pG_2(100.f, 30.f);
-            Vec2 pH_2(80.f, 20.f);
+            Vec2 pH_2(70.f, 20.f);
             Vec2 pI_2(70.f, 10.f);
-            Vec2 pJ_2(90.f, 10.f);
+            Vec2 pJ_2(95.f, 10.f);
+            Vec2 pK_2(80.f, 40.f);
+            Vec2 pL_2(100.f, 60.f);
 
             Segment a_1(pA_1, pC_1);
             Segment b_1(pB_1, pC_1);
             Segment c_1(pC_1, pE_1);
             Segment d_1(pE_1, pD_1);
             Segment e_1(pE_1, pF_1);
-            Segment f_1(pD_1, pF_1);
+            Segment f_1(pD_1, pK_1);
             Segment g_1(pF_1, pG_1);
             Segment h_1(pF_1, pH_1);
             Segment i_1(pG_1, pH_1);
             Segment j_1(pH_1, pI_1);
             Segment k_1(pH_1, pJ_1);
             Segment l_1(pI_1, pJ_1);
+            Segment m_1(pL_1, pG_1);
+            Segment n_1(pF_1, pK_1);
+            Segment o_1(pE_1, pL_1);
 
             Segment a_2(pA_2, pC_2);
             Segment b_2(pB_2, pC_2);
             Segment c_2(pC_2, pE_2);
             Segment d_2(pE_2, pD_2);
             Segment e_2(pE_2, pF_2);
-            Segment f_2(pD_2, pF_2);
+            Segment f_2(pD_2, pK_2);
             Segment g_2(pF_2, pG_2);
             Segment h_2(pF_2, pH_2);
             Segment i_2(pG_2, pH_2);
             Segment j_2(pH_2, pI_2);
             Segment k_2(pH_2, pJ_2);
             Segment l_2(pI_2, pJ_2);
+            Segment m_2(pE_2, pL_2);
+            Segment n_2(pL_2, pG_2);
+            Segment o_2(pF_2, pK_2);
 
             DCEL dcel;
             dcel.insert_segment(a_1);
@@ -679,11 +689,13 @@ namespace TestTrajectoryHotspots
             dcel.insert_segment(j_1);
             dcel.insert_segment(k_1);
             dcel.insert_segment(l_1);
-
+            dcel.insert_segment(m_1);
+            dcel.insert_segment(n_1);
+            dcel.insert_segment(o_1);
 
             //Test if all vertices have the correct amount of adjacent half-edges
-            std::vector<Vec2> points = { pA_1, pB_1, pC_1, pD_1, pE_1, pF_1, pG_1, pH_1, pI_1, pJ_1 };
-            std::vector<size_t> expected_adjacent_he = { 1, 1, 3, 2, 3, 4, 2, 4, 2, 2 };
+            std::vector<Vec2> points = { pA_1, pB_1, pC_1, pD_1, pE_1, pF_1, pG_1, pH_1, pI_1, pJ_1, pK_1, pL_1 };
+            std::vector<size_t> expected_adjacent_he = { 1, 1, 3, 2, 4, 4, 3, 4, 2, 2, 2, 2 };
 
             test_adjacent_he(dcel, points, expected_adjacent_he);
 
@@ -700,14 +712,16 @@ namespace TestTrajectoryHotspots
             dcel_reversed.insert_segment(j_2);
             dcel_reversed.insert_segment(k_2);
             dcel_reversed.insert_segment(l_2);
+            dcel_reversed.insert_segment(m_2);
+            dcel_reversed.insert_segment(n_2);
+            dcel_reversed.insert_segment(o_2);
 
-            std::vector<Vec2> points_reversed = { pA_2, pB_2, pC_2, pD_2, pE_2, pF_2, pG_2, pH_2, pI_2, pJ_2 };
-            std::vector<size_t> expected_adjacent_he_reversed = { 1, 1, 3, 2, 3, 4, 2, 4, 2, 2 };
+            std::vector<Vec2> points_reversed = { pA_2, pB_2, pC_2, pD_2, pE_2, pF_2, pG_2, pH_2, pI_2, pJ_2, pK_2, pL_2 };
+            std::vector<size_t> expected_adjacent_he_reversed = { 1, 1, 3, 2, 4, 4, 3, 4, 2, 2, 2, 2 };
 
             test_adjacent_he(dcel_reversed, points_reversed, expected_adjacent_he_reversed);
 
             dcel.overlay_dcel(dcel_reversed);
-
         }
         TEST_METHOD(DCEL_Overlap_Same_DCELs)
         {

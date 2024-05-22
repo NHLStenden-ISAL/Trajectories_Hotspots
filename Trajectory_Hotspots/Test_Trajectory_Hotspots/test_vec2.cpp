@@ -237,6 +237,18 @@ namespace TestTrajectoryHotspots
             Assert::IsTrue(ca < cb);
 
         }
+
+        TEST_METHOD(pseudo_angle_order_same_bottom)
+        {
+            Vec2 A(4.f, 8.f);
+            Vec2 B(6.f, 4.f);
+            Vec2 C(8.f, 8.f);
+
+            Float ab = Vec2::pseudo_angle(B, A);
+            Float cb = Vec2::pseudo_angle(B, C);
+                    
+            Assert::IsTrue(ab > cb);
+        }
     };
 
 
